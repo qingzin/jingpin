@@ -1,0 +1,7 @@
+duckdb
+openpyxl
+pandas
+qdrant-client
+requests
+streamlit
+tqdm

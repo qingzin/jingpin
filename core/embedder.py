@@ -97,6 +97,8 @@ def build_qdrant_payload(row: dict) -> dict:
         "source_row": _clean_payload_value(row.get("source_row")),
         "part_name": _clean_payload_value(row.get("_part_name") or row.get("part_name")),
         "part_number": _clean_payload_value(row.get("part_number")),
+        "record_type": _clean_payload_value(row.get("record_type")),
+        "pointcloud_path": _clean_payload_value(row.get("pointcloud_path")),
         "level_path": level_path,
         "level_array": level_array if level_path else None,
         "level_depth": _clean_payload_value(row.get("level_depth") or (len(level_array) if isinstance(level_array, list) else None)),

@@ -221,6 +221,17 @@ py -3 search_cli.py --query "semantic=`"前门铰链`" vehicle_name=Tesla_Model3
 - 再补材料、表面处理、重量、尺寸等条件
 - 最后通过结果里的车型汇总去定位对应的点云或拆解图片
 
+---
+
+## 纯后端工具（新增）
+
+当前仓库新增了两个纯后端入口：
+
+1. `builder_tool.py`：建库工具（BOM 文件夹 + 点云文件夹）
+2. `search_service.py`：检索服务（HTTP API，供网页前端调用）
+
+详细说明见：`docs/backend_tools.md`
+
 例如：
 
 ```text

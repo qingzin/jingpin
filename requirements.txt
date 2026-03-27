@@ -5,3 +5,4 @@ qdrant-client
 requests
 streamlit
 tqdm
+PyYAML

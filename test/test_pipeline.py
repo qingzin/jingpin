@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from core.column_normalizer import ColumnNormalizer
+from builder_tool import load_config
 from ingestion_pipeline import detect_header_row, read_file
 
 
@@ -33,3 +34,16 @@ def test_read_file_drops_unnamed_columns(tmp_path):
     assert "_unnamed_1" not in df.columns
     assert list(df.columns) == ["零部件名称", "Part Level 0"]
     assert df.iloc[0]["零部件名称"] == "前门铰链上"
+
+
+def test_load_config_reads_input_section_from_yaml(tmp_path):
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text(
+        "input:\n"
+        "  bom_folder: data/bom\n"
+        "  pointcloud_root: data/pointcloud\n",
+        encoding="utf-8",
+    )
+    cfg = load_config(cfg_path)
+    assert cfg["input"]["bom_folder"] == "data/bom"
+    assert cfg["input"]["pointcloud_root"] == "data/pointcloud"

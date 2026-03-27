@@ -158,12 +158,16 @@ def attach_pointcloud_path_to_part(
 def run_builder(config: dict):
     cfg = {**DEFAULT_CONFIG, **config.get("storage", {})}
     builder_cfg = config.get("builder", {})
-    input_cfg = config.get("input", {})
+    input_cfg = config.get("input") or config.get("inputs") or {}
     pc_cfg = config.get("pointcloud", {})
     embedding_cfg = config.get("embedding", {})
 
-    bom_folder = Path(input_cfg["bom_folder"])
-    pointcloud_root = Path(input_cfg["pointcloud_root"])
+    bom_folder = Path(input_cfg.get("bom_folder") or config.get("bom_folder", "data/bom"))
+    pointcloud_root = Path(input_cfg.get("pointcloud_root") or config.get("pointcloud_root", "data/pointcloud"))
+    if not bom_folder.exists():
+        raise ValueError(f"bom_folder 不存在: {bom_folder}")
+    if not pointcloud_root.exists():
+        raise ValueError(f"pointcloud_root 不存在: {pointcloud_root}")
 
     fail_report_path = Path(builder_cfg.get("fail_report_path", "output/fail_report.csv"))
     fail_report_path.parent.mkdir(parents=True, exist_ok=True)

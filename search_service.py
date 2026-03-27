@@ -25,6 +25,20 @@ def json_response(start_response, status_code: int, data: dict):
     return [body]
 
 
+def decode_request_json(raw_body: bytes) -> dict:
+    """兼容 Windows/MINGW 下 curl 可能提交的非 UTF-8 请求体。"""
+    if not raw_body:
+        return {}
+    last_error = None
+    for encoding in ("utf-8", "utf-8-sig", "gbk", "gb18030"):
+        try:
+            text = raw_body.decode(encoding)
+            return json.loads(text or "{}")
+        except Exception as e:  # noqa: PERF203 - 逐编码尝试是预期流程
+            last_error = e
+    raise ValueError(f"无法解析请求体编码: {last_error}")
+
+
 def app_factory(engine: SearchEngine, pointcloud_root: str):
     root_abs = os.path.abspath(pointcloud_root) if pointcloud_root else ""
 
@@ -39,7 +53,7 @@ def app_factory(engine: SearchEngine, pointcloud_root: str):
             try:
                 length = int(environ.get("CONTENT_LENGTH") or 0)
                 body = environ["wsgi.input"].read(length) if length else b"{}"
-                payload = json.loads(body.decode("utf-8") or "{}")
+                payload = decode_request_json(body)
                 text = (payload.get("query") or "").strip()
                 top_k = int(payload.get("top_k", 20))
                 filters = []

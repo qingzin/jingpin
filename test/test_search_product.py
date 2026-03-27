@@ -107,3 +107,44 @@ def test_search_service_keyword_fallback_returns_download_link(tmp_path):
     assert data["mode"] == "fallback_keyword"
     assert data["total"] == 1
     assert data["results"][0]["pointcloud_download_url"].startswith("/download?path=")
+
+
+def test_search_service_accepts_gbk_encoded_request_body(tmp_path):
+    db_path = tmp_path / "parts.duckdb"
+    duck = DuckDBStore(db_path)
+    duck.init_schema()
+    duck.insert_rows([
+        {
+            "source_file": "BYD_Han.xlsx",
+            "source_row": 0,
+            "part_name": "发动机总成",
+            "record_type": "bom_part",
+            "pointcloud_path": None,
+            "level_array": ["动力系统", "发动机总成"],
+            "embedding_text": "发动机总成 | 动力系统 > 发动机总成",
+            "raw_data": {},
+            "form": "B",
+        }
+    ])
+
+    app = app_factory(DummyEngine(duck), pointcloud_root="")
+
+    payload = json.dumps({"query": "发动机总成", "top_k": 5}, ensure_ascii=False).encode("gbk")
+    environ = {}
+    setup_testing_defaults(environ)
+    environ["REQUEST_METHOD"] = "POST"
+    environ["PATH_INFO"] = "/search"
+    environ["CONTENT_LENGTH"] = str(len(payload))
+    environ["wsgi.input"] = io.BytesIO(payload)
+
+    captured = {}
+
+    def start_response(status, headers):
+        captured["status"] = status
+        captured["headers"] = headers
+
+    body = b"".join(app(environ, start_response))
+    data = json.loads(body.decode("utf-8"))
+    assert captured["status"].startswith("200")
+    assert data["total"] == 1
+    assert data["results"][0]["part_name"] == "发动机总成"

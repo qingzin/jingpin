@@ -36,6 +36,8 @@ DEFAULT_CONFIG = {
     "vector_dim":     1024,
     "embed_batch":    32,
     "insert_batch":   500,
+    "header_candidate_rows": (0, 1),
+    "drop_unnamed_cols": False,
 }
 
 
@@ -43,7 +45,12 @@ DEFAULT_CONFIG = {
 # 读取文件
 # ─────────────────────────────────────────────────────────────────────────────
 
-def read_file(file_path: str | Path, sheet_name=0) -> pd.DataFrame:
+def read_file(
+    file_path: str | Path,
+    sheet_name=0,
+    header_row: int = 0,
+    drop_unnamed_cols: bool = False,
+) -> pd.DataFrame:
     """
     读取 Excel (.xlsx/.xls) 或 CSV 文件。
     返回 DataFrame，所有列保留为字符串（避免 pandas 自动类型转换干扰列名识别）。
@@ -52,14 +59,15 @@ def read_file(file_path: str | Path, sheet_name=0) -> pd.DataFrame:
     suffix = path.suffix.lower()
 
     if suffix in (".xlsx", ".xls"):
-        df = pd.read_excel(path, sheet_name=sheet_name, header=0, dtype=str)
+        df = pd.read_excel(path, sheet_name=sheet_name, header=header_row, dtype=str)
     elif suffix == ".csv":
-        df = pd.read_csv(path, dtype=str, encoding="utf-8-sig")
+        df = pd.read_csv(path, dtype=str, encoding="utf-8-sig", header=header_row)
     else:
         raise ValueError(f"不支持的文件格式：{suffix}")
 
     # 清洗列名：去除首尾空格、换行符
     cleaned_cols = []
+    unnamed_cols = []
     unnamed_count = 0
     for c in df.columns:
         c = str(c).strip().replace("\n", " ").replace("\r", " ")
@@ -67,8 +75,12 @@ def read_file(file_path: str | Path, sheet_name=0) -> pd.DataFrame:
         if not c or c.lower().startswith("unnamed"):
             unnamed_count += 1
             c = f"_unnamed_{unnamed_count}"
+            unnamed_cols.append(c)
         cleaned_cols.append(c)
     df.columns = cleaned_cols
+
+    if drop_unnamed_cols and unnamed_cols:
+        df = df.drop(columns=unnamed_cols, errors="ignore")
 
     # 删除全空行
     df.dropna(how="all", inplace=True)
@@ -76,6 +88,52 @@ def read_file(file_path: str | Path, sheet_name=0) -> pd.DataFrame:
 
     logger.info(f"读取文件 {path.name}：{len(df)} 行，{len(df.columns)} 列")
     return df
+
+
+def detect_header_row(
+    file_path: str | Path,
+    normalizer: ColumnNormalizer,
+    sheet_name=0,
+    candidate_rows: tuple[int, int] = (0, 1),
+    unnamed_ratio_threshold: float = 0.4,
+) -> tuple[int, dict]:
+    """
+    在候选表头行中选择质量最高的一行（默认第1/2行）。
+    评分规则：
+      score = recognized_cols + 2*level_col_count - unnamed_penalty
+    当 unnamed 比例过高时额外惩罚，帮助识别“第一行不是表头”的场景。
+    """
+    best_row = candidate_rows[0]
+    best_score = float("-inf")
+    best_meta = {}
+
+    for row in candidate_rows:
+        try:
+            df = read_file(file_path, sheet_name=sheet_name, header_row=row, drop_unnamed_cols=False)
+            total_cols = max(1, len(df.columns))
+            unnamed_cols = [c for c in df.columns if str(c).startswith("_unnamed_")]
+            unnamed_ratio = len(unnamed_cols) / total_cols
+            _, meta = normalizer.normalize(df)
+            recognized = total_cols - len(meta["unmapped"]) - len(unnamed_cols)
+            level_hits = len(meta["level_cols"])
+            penalty = 0
+            if unnamed_ratio > unnamed_ratio_threshold:
+                penalty += int(unnamed_ratio * 10)
+            score = recognized + 2 * level_hits - penalty
+            if score > best_score:
+                best_score = score
+                best_row = row
+                best_meta = {
+                    "score": score,
+                    "recognized_cols": recognized,
+                    "level_hits": level_hits,
+                    "unnamed_ratio": round(unnamed_ratio, 3),
+                    "total_cols": total_cols,
+                }
+        except Exception as e:
+            logger.warning(f"表头候选检测失败: file={file_path}, row={row}, err={e}")
+
+    return best_row, best_meta
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -89,6 +147,8 @@ def process_single_file(
     duck_store:  DuckDBStore,
     qd_store:    QdrantStore,
     sheet_name   = 0,
+    header_row: int = 0,
+    drop_unnamed_cols: bool = False,
 ) -> dict:
     """
     完整处理单张表：
@@ -100,7 +160,12 @@ def process_single_file(
     t0 = time.time()
 
     # ── 1. 读取 ───────────────────────────────────────────────────────────────
-    df = read_file(file_path, sheet_name=sheet_name)
+    df = read_file(
+        file_path,
+        sheet_name=sheet_name,
+        header_row=header_row,
+        drop_unnamed_cols=drop_unnamed_cols,
+    )
     original_cols = list(df.columns)
 
     # ── 2. 列名归一化 ─────────────────────────────────────────────────────────
@@ -145,6 +210,8 @@ def process_single_file(
             "part_number":     row_dict.get("part_number"),
             "vehicle_model":   row_dict.get("vehicle_model"),
             "manufacturer":    row_dict.get("manufacturer"),
+            "record_type":     "bom_part",
+            "pointcloud_path": None,
             "material":        row_dict.get("material"),
             "material_code":   row_dict.get("material_code"),
             "material_type":   row_dict.get("material_type"),
@@ -274,12 +341,20 @@ def run_pipeline(
     for fp in tqdm(file_paths, desc="处理文件", unit="file"):
         logger.info(f"\n{'='*60}\n处理文件：{fp}")
         try:
+            header_row, header_meta = detect_header_row(
+                fp,
+                normalizer=normalizer,
+                candidate_rows=tuple(cfg.get("header_candidate_rows", (0, 1))),
+            )
+            logger.info(f"  选定表头行: {header_row} | meta={header_meta}")
             summary = process_single_file(
                 file_path  = fp,
                 normalizer = normalizer,
                 embedder   = embedder,
                 duck_store = duck_store,
                 qd_store   = qd_store,
+                header_row = header_row,
+                drop_unnamed_cols = bool(cfg.get("drop_unnamed_cols", False)),
             )
             summary["status"] = "ok"
         except Exception as e:

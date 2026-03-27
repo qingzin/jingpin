@@ -3,5 +3,5 @@ openpyxl
 pandas
 qdrant-client
 requests
-streamlit
 tqdm
+PyYAML

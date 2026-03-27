@@ -19,7 +19,7 @@ import yaml
 from core.column_normalizer import ColumnNormalizer
 from core.db_duckdb import DuckDBStore
 from core.db_qdrant import QdrantStore
-from core.embedder import BGEEmbedder, build_embedding_text, build_qdrant_payload
+from core.embedder import BGEEmbedder, build_qdrant_payload
 from ingestion_pipeline import DEFAULT_CONFIG, detect_header_row, process_single_file
 
 logger = logging.getLogger("builder_tool")

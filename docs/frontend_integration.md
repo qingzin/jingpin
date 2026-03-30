@@ -136,12 +136,47 @@
 
 ---
 
+
+### 3.6 可用筛选字段清单（建议前端固化）
+
+> 前端也可通过 `GET /fields` 动态拉取；以下为当前后端支持字段。
+
+- 文本字段（支持 `=`、`~`）：
+  - `vehicle_name` / `source_file`
+  - `borrowed_vehicle_model`
+  - `part_name`、`part_number`
+  - `manufacturer`
+  - `record_type`
+  - `pointcloud_path`
+  - `material`、`material_type`、`material_grade`
+  - `surface_treat`、`process`
+  - `system`、`part_type`
+  - `location`、`detail`
+  - `level_contains`
+
+- 数值字段（支持 `=`、`>`、`>=`、`<`、`<=`）：
+  - `weight_kg`、`total_weight_kg`、`quantity`
+  - `length_mm`、`width_mm`、`height_mm`、`depth_mm`
+  - `thickness_mm`、`diameter_mm`、`level_depth`
+
+- 特殊字段：
+  - `form`（仅支持 `=`）
+
+- 常用别名（后端会归一化）：
+  - `vehicle -> vehicle_name`
+  - `model -> vehicle_name`
+  - `source -> source_file`
+  - `level -> level_contains`
+  - `depth -> level_depth`
+
+---
+
 ## 4. 页面建议结构
 
 ### 4.1 查询区
 - 搜索输入框（必填）
 - `top_k`
-- 预置筛选输入（建议与历史 Streamlit 对齐）：`vehicle_name`、`material`、`process`、`weight_kg` 下限/上限
+- 预置筛选输入（建议）：仅保留可量化参数：`weight_kg`、`length_mm`、`width_mm`、`height_mm`、`depth_mm` 的下限/上限
 - 高级筛选（由 `/fields` 生成）
 - “搜索”按钮（`/search`）
 - “自然语言搜索”按钮（`/search/nl`）
@@ -168,7 +203,7 @@
 
 ## 6. 示例前端目录与运行说明
 
-- `frontend/search-demo`：搜索示例页面 + README（含预置筛选字段：车型、材料、工艺、重量上下限等）。
+- `frontend/search-demo`：搜索示例页面 + README（含预置可量化筛选字段：重量、长宽高深区间）。
 
 按目录 README 即可本地启动。
 

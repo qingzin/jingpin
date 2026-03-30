@@ -59,7 +59,7 @@ API：
 
 ## 前端示例
 
-- `frontend/search-demo`：搜索服务前端示例（预置筛选字段输入，如重量上下限；支持 `/health`、`/fields`、`/search`、`/search/nl`、`/download`）
+- `frontend/search-demo`：搜索服务前端示例（预置可量化筛选字段输入（重量/长宽高深区间）；支持 `/health`、`/fields`、`/search`、`/search/nl`、`/download`）
 
 前端对接细节见：`docs/frontend_integration.md`。
 

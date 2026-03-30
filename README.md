@@ -1,80 +1,84 @@
-# BOM + 点云后端工具（Builder + Search Service）
+# BOM + 点云后端工具交付说明（EXE）
 
-项目交付后端能力，并附带搜索示例前端。
+本文档面向拿到交付包的前端/测试同学，只说明如何在 Windows 上直接使用 EXE 完成建库与检索。
 
-## 快速开始
+## 1. 交付物
 
-```bash
-python -m pip install -r requirements.txt
-python builder_tool.py --config config.yaml --run-mode full
-python search_service.py --db db/bom.duckdb --qdrant db/qdrant_storage --api-key YOUR_BEARER_TOKEN --host 0.0.0.0 --port 8080
+最少应包含：
+
+- `dist/builder_tool.exe`
+- `dist/search_service.exe`
+- `config/config.template.yaml`
+- `db/`（建库后会生成或更新 `bom.duckdb`、`qdrant_storage`）
+- `data/pointcloud/`（如需下载点云）
+
+---
+
+## 2. 建库执行
+
+1. 复制配置模板：
+
+```powershell
+copy config\config.template.yaml config.yaml
+```
+
+2. 修改 `config.yaml` 中 BOM 目录、点云目录、存储目录等参数。
+
+3. 执行建库：
+
+```powershell
+.\dist\builder_tool.exe --config config.yaml --run-mode full
 ```
 
 ---
 
-## 工具 1：Builder（建库）
+## 3. 启动检索服务
 
-能力：
-- 扫描 BOM 文件夹（`xlsx/xls/csv`）
-- 表头仅在第 1/2 行二选一，支持第一行大量空值/unnamed 的场景
-- 丢弃未命名列（可配置）
-- 扫描点云目录（`.stl/.obj`）
-- 同车型同名零部件关联 `pointcloud_path`
-- 同车型无同名零部件写入 `record_type=pointcloud_only`
-- 失败文件跳过并输出失败报告
+> `--api-key` 必填。
 
-命令：
-
-```bash
-python builder_tool.py --config config.yaml --run-mode full
+```powershell
+.\dist\search_service.exe --db db\bom.duckdb --qdrant db\qdrant_storage --api-key <YOUR_API_KEY> --model bge-m3 --host 0.0.0.0 --port 8080 --pointcloud-root data\pointcloud
 ```
 
-配置模板见：`config/config.template.yaml`。
+服务默认示例地址：`http://127.0.0.1:8080`
 
 ---
 
-## 工具 2：Search Service（检索后端）
+## 4. 联调接口
 
-语义模式（API Key 必填）：
-
-```bash
-python search_service.py \
-  --db db/bom.duckdb \
-  --qdrant db/qdrant_storage \
-  --api-key YOUR_BEARER_TOKEN \
-  --model bge-m3 \
-  --host 0.0.0.0 \
-  --port 8080 \
-  --pointcloud-root D:/data/pointcloud
-```
-
-API：
 - `GET /health`
 - `GET /fields`
-- `POST /search`（结构化检索）
-- `POST /search/nl`（自然语言检索）
-- `GET /download?path=...`（点云下载）
+- `POST /search`
+- `POST /search/nl`
+- `GET /download?path=...`
 
----
+示例：
 
-## 前端示例
+```powershell
+curl http://127.0.0.1:8080/health
+```
 
-- `frontend/search-demo`：搜索服务前端示例（预置可量化筛选字段输入（重量/长宽高深区间）；支持 `/health`、`/fields`、`/search`、`/search/nl`、`/download`）
-
-前端对接细节见：`docs/frontend_integration.md`。
-
----
-
-## 测试
-
-```bash
-pytest -q
+```powershell
+curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json" -d '{"query":"前门铰链","top_k":20}'
 ```
 
 ---
 
-## EXE 打包（Windows）
+## 5. 搜索示例前端
 
-- `docs/exe_packaging.md`
-- `packaging/build_exe.ps1`
-- `packaging/build_exe.bat`
+交付包内示例前端目录：`frontend/search-demo`。
+
+运行后可验证：
+- 健康检查
+- 结构化搜索 / 自然语言搜索
+- 重量/长宽高深筛选
+- 点云下载按钮
+
+详细字段与前端约定见：`docs/frontend_integration.md`。
+
+---
+
+## 6. 更多说明
+
+- EXE 打包说明：`docs/exe_packaging.md`
+- 后端工具说明：`docs/backend_tools.md`

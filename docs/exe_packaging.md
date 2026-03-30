@@ -60,7 +60,6 @@ delivery/
 ├─ data/
 │  └─ pointcloud/
 ├─ frontend/
-│  ├─ builder-runner/
 │  └─ search-demo/
 └─ docs/
    ├─ exe_packaging.md

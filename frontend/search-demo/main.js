@@ -12,6 +12,32 @@ async function api(path, method = "GET", body) {
   return data;
 }
 
+function appendFilter(filters, field, op, value) {
+  if (value === undefined || value === null || value === "") return;
+  filters.push({ field, op, value });
+}
+
+function buildPresetFilters() {
+  const filters = [];
+  appendFilter(filters, "vehicle_name", "~", $("vehicleName").value.trim());
+  appendFilter(filters, "material", "~", $("material").value.trim());
+  appendFilter(filters, "process", "~", $("process").value.trim());
+
+  const weightMin = $("weightMin").value;
+  const weightMax = $("weightMax").value;
+  if (weightMin !== "") appendFilter(filters, "weight_kg", ">=", Number(weightMin));
+  if (weightMax !== "") appendFilter(filters, "weight_kg", "<=", Number(weightMax));
+
+  return filters;
+}
+
+function parseExtraFilters() {
+  const raw = $("filters").value.trim();
+  if (!raw) return [];
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
 function renderRows(rows = []) {
   const tbody = $("tbody");
   tbody.innerHTML = "";
@@ -22,6 +48,9 @@ function renderRows(rows = []) {
       <td>${r.score ?? ""}</td>
       <td>${r.part_name ?? ""}</td>
       <td>${r.vehicle_name ?? ""}</td>
+      <td>${r.material ?? ""}</td>
+      <td>${r.process ?? ""}</td>
+      <td>${r.weight_kg ?? ""}</td>
       <td>${r.level_path ?? ""}</td>
       <td>${r.pointcloud_download_url ? `<a href="${r.pointcloud_download_url}" target="_blank">下载</a>` : ""}</td>
     `;
@@ -30,22 +59,21 @@ function renderRows(rows = []) {
 }
 
 async function runSearch(path) {
-  const rawFilters = $("filters").value.trim();
-  let filters = [];
-  if (rawFilters) filters = JSON.parse(rawFilters);
-
   const payload = {
     query: $("query").value.trim(),
     top_k: Number($("topk").value || 20),
-    filters,
+    filters: [...buildPresetFilters(), ...parseExtraFilters()],
   };
+
   const data = await api(path, "POST", payload);
   $("meta").textContent = JSON.stringify({
     mode: data.mode,
     strategy: data.strategy,
     total: data.total,
     elapsed_ms: data.elapsed_ms,
+    candidate_count: data.candidate_count,
     notes: data.notes,
+    request_filters: payload.filters,
   }, null, 2);
   renderRows(data.results);
 }

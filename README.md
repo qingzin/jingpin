@@ -1,6 +1,6 @@
 # BOM + 点云后端工具（Builder + Search Service）
 
-项目交付后端能力，并附带两个最小前端示例（建库执行器、搜索示例）。
+项目交付后端能力，并附带搜索示例前端。
 
 ## 快速开始
 
@@ -59,8 +59,7 @@ API：
 
 ## 前端示例
 
-- `frontend/builder-runner`：建库执行前端（通过本地 bridge 调用 `builder_tool.exe`）
-- `frontend/search-demo`：搜索服务前端示例（`/health`、`/fields`、`/search`、`/search/nl`、`/download`）
+- `frontend/search-demo`：搜索服务前端示例（预置筛选字段输入，如重量上下限；支持 `/health`、`/fields`、`/search`、`/search/nl`、`/download`）
 
 前端对接细节见：`docs/frontend_integration.md`。
 

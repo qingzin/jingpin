@@ -5,45 +5,94 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Search Demo</title>
   <style>
-    body{font-family:Arial,sans-serif;max-width:1100px;margin:20px auto;padding:0 12px}
-    input,button,textarea{padding:8px;margin:4px}
+    body{font-family:Arial,sans-serif;max-width:1180px;margin:20px auto;padding:0 12px}
+    .card{border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:12px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    label{font-size:12px;color:#555;display:block;margin:4px 0}
+    input,button,textarea{padding:8px}
+    input{min-width:160px}
     table{width:100%;border-collapse:collapse;margin-top:12px}
     th,td{border:1px solid #ddd;padding:6px;font-size:12px}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
     pre{background:#f8f8f8;padding:10px;white-space:pre-wrap}
+    .hint{font-size:12px;color:#666}
   </style>
 </head>
 <body>
-  <h1>搜索服务前端示例</h1>
-  <div class="row">
-    <input id="base" value="http://127.0.0.1:8080" style="width:240px" />
-    <button id="healthBtn">Health</button>
-    <button id="fieldsBtn">Fields</button>
+  <h1>搜索服务前端示例（接近历史 Streamlit 交互）</h1>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>服务地址</label>
+        <input id="base" value="http://127.0.0.1:8080" style="width:240px" />
+      </div>
+      <button id="healthBtn">Health</button>
+      <button id="fieldsBtn">Fields</button>
+    </div>
   </div>
 
-  <div class="row">
-    <input id="query" value="前门铰链" style="width:320px" />
-    <input id="topk" type="number" value="20" />
-    <textarea id="filters" rows="2" cols="45" placeholder='[{"field":"vehicle_name","op":"~","value":"Model3"}]'></textarea>
+  <div class="card">
+    <h3>查询区</h3>
+    <div class="row">
+      <div>
+        <label>语义查询</label>
+        <input id="query" value="前门铰链" style="width:320px" />
+      </div>
+      <div>
+        <label>top_k</label>
+        <input id="topk" type="number" value="20" style="width:90px" />
+      </div>
+      <button id="searchBtn">结构化搜索 /search</button>
+      <button id="nlBtn">自然语言搜索 /search/nl</button>
+    </div>
+
+    <h4>预置筛选字段</h4>
+    <div class="row">
+      <div>
+        <label>车型（模糊）vehicle_name ~</label>
+        <input id="vehicleName" placeholder="例如 Model3" />
+      </div>
+      <div>
+        <label>材料（模糊）material ~</label>
+        <input id="material" placeholder="例如 steel" />
+      </div>
+      <div>
+        <label>工艺（模糊）process ~</label>
+        <input id="process" placeholder="例如 冲压" />
+      </div>
+      <div>
+        <label>重量下限（kg）weight_kg >=</label>
+        <input id="weightMin" type="number" step="0.001" placeholder="0.1" />
+      </div>
+      <div>
+        <label>重量上限（kg）weight_kg <=</label>
+        <input id="weightMax" type="number" step="0.001" placeholder="0.5" />
+      </div>
+    </div>
+
+    <div class="row">
+      <label>高级 filters JSON（可选，会与预置字段合并）</label>
+      <textarea id="filters" rows="2" cols="80" placeholder='[{"field":"quantity","op":">=","value":2}]'></textarea>
+    </div>
+    <div class="hint">提示：预置字段会自动转为 filters 数组；重量上下限分别映射为 `weight_kg >=` 和 `weight_kg <=`。</div>
   </div>
 
-  <div class="row">
-    <button id="searchBtn">/search</button>
-    <button id="nlBtn">/search/nl</button>
+  <div class="card">
+    <h3>服务信息</h3>
+    <pre id="meta"></pre>
   </div>
 
-  <h3>服务信息</h3>
-  <pre id="meta"></pre>
-
-  <h3>结果</h3>
-  <table>
-    <thead>
+  <div class="card">
+    <h3>结果</h3>
+    <table>
+      <thead>
       <tr>
-        <th>rank</th><th>score</th><th>part_name</th><th>vehicle_name</th><th>level_path</th><th>download</th>
+        <th>rank</th><th>score</th><th>part_name</th><th>vehicle_name</th><th>material</th><th>process</th><th>weight_kg</th><th>level_path</th><th>download</th>
       </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
 
   <script src="./main.js"></script>
 </body>

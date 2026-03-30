@@ -82,6 +82,8 @@ def _make_response_payload(search_response: dict) -> dict:
             "record_type": row.get("record_type") or "bom_part",
             "part_number": row.get("part_number"),
             "material": row.get("material"),
+            "process": row.get("process"),
+            "weight_kg": row.get("weight_kg"),
             "level_path": level_path,
             "pointcloud_path": pc_path,
             "pointcloud_download_url": f"/download?path={urllib.parse.quote(pc_path)}" if pc_path else None,

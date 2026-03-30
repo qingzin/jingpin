@@ -141,6 +141,7 @@
 ### 4.1 查询区
 - 搜索输入框（必填）
 - `top_k`
+- 预置筛选输入（建议与历史 Streamlit 对齐）：`vehicle_name`、`material`、`process`、`weight_kg` 下限/上限
 - 高级筛选（由 `/fields` 生成）
 - “搜索”按钮（`/search`）
 - “自然语言搜索”按钮（`/search/nl`）
@@ -167,11 +168,9 @@
 
 ## 6. 示例前端目录与运行说明
 
-- `frontend/builder-runner`：建库执行页面 + README。
-- `frontend/search-demo`：搜索示例页面 + README。
-- `frontend/local-bridge`：本地 bridge（负责执行 exe 与暴露本地 API）。
+- `frontend/search-demo`：搜索示例页面 + README（含预置筛选字段：车型、材料、工艺、重量上下限等）。
 
-按各目录 README 即可本地启动。
+按目录 README 即可本地启动。
 
 ---
 

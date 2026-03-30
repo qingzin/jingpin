@@ -15,4 +15,9 @@ python -m http.server 5173
 
 - 默认后端地址：`http://127.0.0.1:8080`
 - 启动后先点 `Health`，会自动根据 `nl_enabled` 控制 NL 按钮可用性。
-- `filters` 支持输入 JSON 数组。
+- 页面内置常用筛选输入：
+  - `vehicle_name`（模糊）
+  - `material`（模糊）
+  - `process`（模糊）
+  - `weight_kg` 上下限（`>=` / `<=`）
+- 也支持额外 `filters JSON`，会与预置筛选合并。

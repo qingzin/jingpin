@@ -25,6 +25,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def derive_vehicle_name_from_filename(file_name: str) -> str:
+    """
+    从 BOM 文件名提取车型名。
+
+    约定：文件名形如“明细表_车型名.xlsx/csv”，提取下划线后的车型名。
+    若不满足该结构，则回退为去扩展名后的 stem。
+    """
+    stem = Path(file_name).stem.strip()
+    if stem.startswith("明细表_") and len(stem) > len("明细表_"):
+        return stem.split("明细表_", 1)[1].strip()
+    return stem
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 配置默认值
 # ─────────────────────────────────────────────────────────────────────────────
@@ -178,6 +191,7 @@ def process_single_file(
 
     # ── 3. 形态识别 + 层级重建 ─────────────────────────────────────────────────
     df = process_structure(df, level_cols)
+    source_vehicle_name = derive_vehicle_name_from_filename(file_path.name)
     summary = structure_summary(df, str(file_path.name))
     logger.info(
         f"  形态={summary['form']} | "
@@ -200,7 +214,7 @@ def process_single_file(
         embed_text = build_embedding_text(row_dict)
 
         duck_row = {
-            "source_file":     file_path.name,
+            "source_file":     source_vehicle_name,
             "source_row":      row_idx,
             "part_name":       row_dict.get("_part_name"),
             "part_name_source":row_dict.get("_name_source"),
@@ -262,7 +276,7 @@ def process_single_file(
     # ── 6. 获取刚插入的 id（按 source_file + source_row 对齐）─────────────────
     id_df = duck_store.conn.execute(
         "SELECT id, source_row FROM parts WHERE source_file = ? ORDER BY source_row",
-        [file_path.name]
+        [source_vehicle_name]
     ).df()
     id_map = dict(zip(id_df["source_row"], id_df["id"]))
 

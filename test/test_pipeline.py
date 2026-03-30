@@ -6,7 +6,7 @@ import pandas as pd
 
 from core.column_normalizer import ColumnNormalizer
 from builder_tool import load_config
-from ingestion_pipeline import detect_header_row, read_file
+from ingestion_pipeline import derive_vehicle_name_from_filename, detect_header_row, read_file
 
 
 MAPPING_PATH = "config/column_mapping.json"
@@ -47,3 +47,9 @@ def test_load_config_reads_input_section_from_yaml(tmp_path):
     cfg = load_config(cfg_path)
     assert cfg["input"]["bom_folder"] == "data/bom"
     assert cfg["input"]["pointcloud_root"] == "data/pointcloud"
+
+
+def test_derive_vehicle_name_from_filename():
+    assert derive_vehicle_name_from_filename("明细表_Model3.xlsx") == "Model3"
+    assert derive_vehicle_name_from_filename("明细表_小米SU7.csv") == "小米SU7"
+    assert derive_vehicle_name_from_filename("Tesla_ModelY.xlsx") == "Tesla_ModelY"

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Demo</title>
+  <style>
+    body{font-family:Arial,sans-serif;max-width:1100px;margin:20px auto;padding:0 12px}
+    input,button,textarea{padding:8px;margin:4px}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #ddd;padding:6px;font-size:12px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    pre{background:#f8f8f8;padding:10px;white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <h1>搜索服务前端示例</h1>
+  <div class="row">
+    <input id="base" value="http://127.0.0.1:8080" style="width:240px" />
+    <button id="healthBtn">Health</button>
+    <button id="fieldsBtn">Fields</button>
+  </div>
+
+  <div class="row">
+    <input id="query" value="前门铰链" style="width:320px" />
+    <input id="topk" type="number" value="20" />
+    <textarea id="filters" rows="2" cols="45" placeholder='[{"field":"vehicle_name","op":"~","value":"Model3"}]'></textarea>
+  </div>
+
+  <div class="row">
+    <button id="searchBtn">/search</button>
+    <button id="nlBtn">/search/nl</button>
+  </div>
+
+  <h3>服务信息</h3>
+  <pre id="meta"></pre>
+
+  <h3>结果</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>rank</th><th>score</th><th>part_name</th><th>vehicle_name</th><th>level_path</th><th>download</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <script src="./main.js"></script>
+</body>
+</html>

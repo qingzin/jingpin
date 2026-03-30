@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Builder Runner</title>
+  <style>
+    body{font-family:Arial,sans-serif;max-width:900px;margin:20px auto;padding:0 12px}
+    label{display:block;margin:8px 0 4px}
+    input,select,button{padding:8px;margin-right:8px}
+    pre{background:#111;color:#0f0;padding:12px;min-height:280px;overflow:auto}
+  </style>
+</head>
+<body>
+  <h1>建库执行器（示例）</h1>
+  <p>通过 local-bridge 调用本地 builder_tool。</p>
+
+  <label>Bridge 地址</label>
+  <input id="bridge" value="http://127.0.0.1:18081" style="width:280px" />
+
+  <label>Builder 可执行文件</label>
+  <input id="exe" value="dist/builder_tool.exe" style="width:280px" />
+
+  <label>配置路径</label>
+  <input id="config" value="config.yaml" style="width:280px" />
+
+  <label>Run Mode</label>
+  <select id="mode">
+    <option value="full">full</option>
+    <option value="incremental">incremental</option>
+  </select>
+
+  <button id="runBtn">执行建库</button>
+  <button id="refreshBtn">刷新状态</button>
+
+  <h3>状态</h3>
+  <div id="status">未启动</div>
+
+  <h3>日志</h3>
+  <pre id="log"></pre>
+
+  <script src="./main.js"></script>
+</body>
+</html>

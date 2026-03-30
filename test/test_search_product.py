@@ -16,13 +16,43 @@ from search_service import app_factory
 
 
 class DummyEngine:
-    def __init__(self, duck_store):
+    def __init__(self, duck_store, with_embedder: bool = True):
         self.duck_store = duck_store
-        self.embedder = None
+        self.embedder = object() if with_embedder else None
 
     @staticmethod
     def supported_fields():
         return [{"field": "vehicle_name", "type": "text", "ops": "=~"}]
+
+    @staticmethod
+    def search(query):
+        return {
+            "strategy": query.strategy,
+            "notes": ["dummy search"],
+            "query": query,
+            "result": {
+                "elapsed_ms": 3,
+                "candidate_count": 1,
+                "retrieval_mode": "vector",
+                "retrieval_explanation": "dummy",
+                "notes": [],
+                "results": [
+                    {
+                        "rank": 1,
+                        "score": 0.99,
+                        "row": {
+                            "source_file": "Tesla_Model3.xlsx",
+                            "part_name": "前门铰链上",
+                            "record_type": "bom_part",
+                            "part_number": "PN-001",
+                            "material": "steel",
+                            "level_array": ["车身系统", "车门总成"],
+                            "pointcloud_path": "D:/pcd/Tesla_Model3/前门铰链上.stl",
+                        },
+                    }
+                ],
+            },
+        }
 
 
 @dataclass
@@ -118,28 +148,15 @@ def test_pointcloud_match_and_pointcloud_only_insert():
         assert cnt == 1
 
 
-def test_search_service_keyword_fallback_returns_download_link(tmp_path):
+def test_search_service_returns_semantic_result_with_download_link(tmp_path):
     db_path = tmp_path / "parts.duckdb"
     duck = DuckDBStore(db_path)
     duck.init_schema()
-    duck.insert_rows([
-        {
-            "source_file": "Tesla_Model3.xlsx",
-            "source_row": 0,
-            "part_name": "前门铰链上",
-            "record_type": "bom_part",
-            "pointcloud_path": "D:/pcd/Tesla_Model3/前门铰链上.stl",
-            "level_array": ["车身系统", "车门总成"],
-            "embedding_text": "前门铰链上 | 车身系统 > 车门总成",
-            "raw_data": {},
-            "form": "B",
-        }
-    ])
 
-    app = app_factory(DummyEngine(duck), planner=DummyPlanner(), pointcloud_root="")
+    app = app_factory(DummyEngine(duck, with_embedder=True), planner=DummyPlanner(), pointcloud_root="")
     status, data = _invoke_app(app, "POST", "/search", {"query": "铰链", "top_k": 5})
     assert status.startswith("200")
-    assert data["mode"] == "fallback_keyword"
+    assert data["mode"] == "semantic"
     assert data["total"] == 1
     assert data["results"][0]["pointcloud_download_url"].startswith("/download?path=")
 
@@ -147,17 +164,26 @@ def test_search_service_keyword_fallback_returns_download_link(tmp_path):
 def test_search_service_fields_endpoint(tmp_path):
     duck = DuckDBStore(tmp_path / "parts.duckdb")
     duck.init_schema()
-    app = app_factory(DummyEngine(duck), planner=DummyPlanner(), pointcloud_root="")
+    app = app_factory(DummyEngine(duck, with_embedder=True), planner=DummyPlanner(), pointcloud_root="")
     status, data = _invoke_app(app, "GET", "/fields")
     assert status.startswith("200")
     assert isinstance(data["fields"], list)
     assert data["fields"][0]["field"] == "vehicle_name"
 
 
+def test_search_service_requires_embedder_for_search(tmp_path):
+    duck = DuckDBStore(tmp_path / "parts.duckdb")
+    duck.init_schema()
+    app = app_factory(DummyEngine(duck, with_embedder=False), planner=DummyPlanner(), pointcloud_root="")
+    status, data = _invoke_app(app, "POST", "/search", {"query": "查找前门铰链", "top_k": 5})
+    assert status.startswith("503")
+    assert "embedding" in data["error"]
+
+
 def test_search_service_nl_requires_embedder(tmp_path):
     duck = DuckDBStore(tmp_path / "parts.duckdb")
     duck.init_schema()
-    app = app_factory(DummyEngine(duck), planner=DummyPlanner(), pointcloud_root="")
+    app = app_factory(DummyEngine(duck, with_embedder=False), planner=DummyPlanner(), pointcloud_root="")
     status, data = _invoke_app(app, "POST", "/search/nl", {"query": "查找前门铰链", "top_k": 5})
     assert status.startswith("400")
     assert "embedding" in data["error"]

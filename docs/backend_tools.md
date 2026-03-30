@@ -45,15 +45,11 @@ embedding:
 
 ## 2. Search Service 检索工具
 
-### 启动
+### 启动（API Key 必填）
 ```bash
 python search_service.py --db db/bom.duckdb --qdrant db/qdrant_storage --api-key YOUR_TOKEN --model bge-m3 --host 0.0.0.0 --port 8080 --pointcloud-root D:/data/pointcloud
 ```
 
-无 api-key 时自动降级为关键词检索：
-```bash
-python search_service.py --db db/bom.duckdb --qdrant db/qdrant_storage --host 0.0.0.0 --port 8080
-```
 
 ### API
 

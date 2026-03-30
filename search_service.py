@@ -4,8 +4,8 @@
 提供与历史 Streamlit 交互功能一致的后端能力：
 - GET /health
 - GET /fields
-- POST /search           结构化查询
-- POST /search/nl        自然语言查询（可选 LLM，支持规则解析降级）
+- POST /search           结构化查询（强制语义检索）
+- POST /search/nl        自然语言查询（可选 LLM）
 - GET /download?path=...
 """
 from __future__ import annotations
@@ -88,7 +88,7 @@ def _make_response_payload(search_response: dict) -> dict:
         })
 
     return {
-        "mode": "semantic_or_fallback",
+        "mode": "semantic",
         "strategy": search_response["strategy"],
         "elapsed_ms": result["elapsed_ms"],
         "candidate_count": result["candidate_count"],
@@ -112,33 +112,6 @@ def _read_json_body(environ) -> dict:
     length = int(environ.get("CONTENT_LENGTH") or 0)
     body = environ["wsgi.input"].read(length) if length else b"{}"
     return json.loads(body.decode("utf-8") or "{}")
-
-
-def _fallback_keyword_search(engine: SearchEngine, text: str, top_k: int) -> list[dict]:
-    sql = """
-    SELECT id, source_file, part_name, part_number, material, level_array, pointcloud_path, record_type
-    FROM parts
-    WHERE part_name ILIKE ?
-    ORDER BY id DESC
-    LIMIT ?
-    """
-    rows_db = engine.duck_store.conn.execute(sql, [f"%{text}%", top_k]).fetchall()
-    rows = []
-    for idx, row in enumerate(rows_db, start=1):
-        _, source_file, part_name, part_number, material, level_array, pc_path, record_type = row
-        rows.append({
-            "rank": idx,
-            "score": None,
-            "part_name": part_name,
-            "vehicle_name": source_file,
-            "record_type": record_type or "bom_part",
-            "part_number": part_number,
-            "material": material,
-            "level_path": " > ".join(level_array or []),
-            "pointcloud_path": pc_path,
-            "pointcloud_download_url": f"/download?path={urllib.parse.quote(pc_path)}" if pc_path else None,
-        })
-    return rows
 
 
 def _is_path_allowed(target: str, root_abs: str) -> bool:
@@ -167,7 +140,7 @@ def app_factory(engine: SearchEngine, planner: NaturalLanguagePlanner | None, po
                 {
                     "status": "ok",
                     "semantic_enabled": engine.embedder is not None,
-                    "nl_enabled": bool(planner),
+                    "nl_enabled": bool(planner and engine.embedder is not None),
                     "llm_enabled": llm_enabled,
                 },
             )
@@ -184,26 +157,19 @@ def app_factory(engine: SearchEngine, planner: NaturalLanguagePlanner | None, po
 
                 if not text:
                     return json_response(start_response, 400, {"error": "query 不能为空"})
+                if engine.embedder is None:
+                    return json_response(start_response, 503, {"error": "服务未正确初始化：缺少 embedding 配置。"})
 
-                if engine.embedder is not None:
-                    query = SearchQuery(
-                        semantic_query=text,
-                        target_component=infer_target_component(text),
-                        filters=filters,
-                        top_k=top_k,
-                        strategy="semantic_first",
-                    )
-                    response = engine.search(query)
-                    response_payload = _make_response_payload(response)
-                    return json_response(start_response, 200, response_payload)
-
-                rows = _fallback_keyword_search(engine=engine, text=text, top_k=top_k)
-                return json_response(start_response, 200, {
-                    "mode": "fallback_keyword",
-                    "top_k": top_k,
-                    "total": len(rows),
-                    "results": rows,
-                })
+                query = SearchQuery(
+                    semantic_query=text,
+                    target_component=infer_target_component(text),
+                    filters=filters,
+                    top_k=top_k,
+                    strategy="semantic_first",
+                )
+                response = engine.search(query)
+                response_payload = _make_response_payload(response)
+                return json_response(start_response, 200, response_payload)
             except Exception as e:
                 return json_response(start_response, 500, {"error": str(e)})
 
@@ -260,7 +226,7 @@ def main():
     parser = argparse.ArgumentParser(description="Search backend service")
     parser.add_argument("--db", required=True)
     parser.add_argument("--qdrant", required=True)
-    parser.add_argument("--api-key", default=None)
+    parser.add_argument("--api-key", required=True, help="Embedding API Key（必填）")
     parser.add_argument("--model", default="bge-m3")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8080)
@@ -275,10 +241,7 @@ def main():
     qdrant = QdrantStore(args.qdrant)
     qdrant.init_collection(dim=1024)
 
-    embedder = None
-    if args.api_key:
-        embedder = BGEEmbedder(api_key=args.api_key, model=args.model)
-
+    embedder = BGEEmbedder(api_key=args.api_key, model=args.model)
     planner = NaturalLanguagePlanner(
         api_base=args.llm_api_base,
         api_key=args.llm_api_key,

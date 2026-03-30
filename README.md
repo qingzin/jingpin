@@ -1,13 +1,13 @@
 # BOM + 点云后端工具（Builder + Search Service）
 
-项目只交付后端能力，不包含前端页面代码。前端可按 API 文档自行实现页面与交互。
+项目交付后端能力，并附带两个最小前端示例（建库执行器、搜索示例）。
 
 ## 快速开始
 
 ```bash
 python -m pip install -r requirements.txt
 python builder_tool.py --config config.yaml --run-mode full
-python search_service.py --db db/bom.duckdb --qdrant db/qdrant_storage --host 0.0.0.0 --port 8080
+python search_service.py --db db/bom.duckdb --qdrant db/qdrant_storage --api-key YOUR_BEARER_TOKEN --host 0.0.0.0 --port 8080
 ```
 
 ---
@@ -35,7 +35,7 @@ python builder_tool.py --config config.yaml --run-mode full
 
 ## 工具 2：Search Service（检索后端）
 
-语义模式：
+语义模式（API Key 必填）：
 
 ```bash
 python search_service.py \
@@ -48,8 +48,6 @@ python search_service.py \
   --pointcloud-root D:/data/pointcloud
 ```
 
-无 API Key 时自动降级为关键词检索（`/search` 可用，`/search/nl` 不可用）。
-
 API：
 - `GET /health`
 - `GET /fields`
@@ -59,11 +57,12 @@ API：
 
 ---
 
-## 前端对接文档
+## 前端示例
 
-前端需要实现哪些功能、每个接口的请求/响应字段、页面行为（检索输入、结果表格、车型汇总、点云下载按钮）统一见：
+- `frontend/builder-runner`：建库执行前端（通过本地 bridge 调用 `builder_tool.exe`）
+- `frontend/search-demo`：搜索服务前端示例（`/health`、`/fields`、`/search`、`/search/nl`、`/download`）
 
-- `docs/frontend_integration.md`
+前端对接细节见：`docs/frontend_integration.md`。
 
 ---
 

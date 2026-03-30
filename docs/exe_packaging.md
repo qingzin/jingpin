@@ -1,9 +1,9 @@
-# EXE 打包与交付说明
+# EXE 打包与交付说明（Windows）
 
-本文档说明如何在 **Windows** 环境下把项目打包成两个可执行文件：
+本文档说明如何在 **Windows** 环境下把项目打包成两个可执行文件并交付前端团队：
 
 - `builder_tool.exe`：建库工具
-- `search_service.exe`：检索服务
+- `search_service.exe`：检索服务（强制要求 API Key）
 
 > 说明：在 Linux/macOS 上无法直接产出 Windows `.exe`，请在目标 Windows 环境执行以下步骤。
 
@@ -20,13 +20,13 @@ python -m pip install pyinstaller
 
 ## 2. 一键打包
 
-### PowerShell
+### 2.1 PowerShell
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 ```
 
-### CMD
+### 2.2 CMD
 
 ```bat
 packaging\build_exe.bat
@@ -43,9 +43,35 @@ packaging\build_exe.bat
 
 ---
 
-## 4. 运行方式
+## 4. 标准交付包目录（建议）
 
-### 4.1 建库工具
+```text
+delivery/
+├─ backend/
+│  ├─ builder_tool.exe
+│  ├─ search_service.exe
+│  ├─ config.template.yaml
+│  ├─ start_builder.bat
+│  ├─ start_search_service.bat
+│  └─ VERSION.txt
+├─ db/
+│  ├─ bom.duckdb
+│  └─ qdrant_storage/
+├─ data/
+│  └─ pointcloud/
+├─ frontend/
+│  ├─ builder-runner/
+│  └─ search-demo/
+└─ docs/
+   ├─ exe_packaging.md
+   └─ frontend_integration.md
+```
+
+---
+
+## 5. 运行方式
+
+### 5.1 建库工具
 
 先复制配置模板：
 
@@ -59,7 +85,7 @@ copy config\config.template.yaml config.yaml
 .\dist\builder_tool.exe --config config.yaml --run-mode full
 ```
 
-### 4.2 检索服务
+### 5.2 检索服务（API Key 必填）
 
 ```powershell
 .\dist\search_service.exe --db db\bom.duckdb --qdrant db\qdrant_storage --api-key <YOUR_API_KEY> --model bge-m3 --host 0.0.0.0 --port 8080 --pointcloud-root data\pointcloud
@@ -67,10 +93,12 @@ copy config\config.template.yaml config.yaml
 
 ---
 
-## 5. 前端联调最小接口
+## 6. 前端联调最小接口
 
 - `GET /health`
+- `GET /fields`
 - `POST /search`
+- `POST /search/nl`
 - `GET /download?path=...`
 
 示例：
@@ -85,15 +113,31 @@ curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json" -d
 
 ---
 
-## 6. 常见问题
+## 7. 前端团队 10 分钟验收流程
 
-### Q1: 打包后运行报缺少 DLL/依赖
-- 确认在目标 Windows 机器重新执行过 `pip install -r requirements.txt`
-- 重新执行打包脚本，确保使用同一 Python 版本
+1. 启动 `search_service.exe`（提供有效 `--api-key`）。
+2. 调用 `/health`，确认 `status=ok` 且 `semantic_enabled=true`。
+3. 调用 `/search` 获取结果并检查 `display.rows` 与 `results`。
+4. 若有点云路径，点击 `pointcloud_download_url` 验证下载。
+5. 调用 `/search/nl` 验证自然语言查询链路。
 
-### Q2: 构建成功但搜索无语义结果
-- 检查 `--api-key` 是否有效
-- 检查建库阶段是否已启用 embedding 并成功写入向量
+---
 
-### Q3: download 返回 403
-- 检查请求的文件路径是否在 `--pointcloud-root` 指定目录下
+## 8. 故障排查矩阵
+
+| 问题现象 | 可能原因 | 处理建议 |
+|---|---|---|
+| 服务启动失败，提示参数错误 | 未传 `--api-key` | 补充有效 API Key 后重启 |
+| 端口占用 | 8080 被其他服务占用 | 改 `--port` 或释放端口 |
+| `/download` 返回 403 | 请求路径不在 `--pointcloud-root` 下 | 修正点云根目录或下载路径 |
+| `/download` 返回 404 | 文件不存在 | 检查建库写入路径与实际文件 |
+| `/search` 返回 500 | DB/Qdrant 路径错误或数据未建好 | 检查 `--db`、`--qdrant`、先执行建库 |
+| 语义结果质量低 | embedding 数据缺失或 key 异常 | 重跑建库并确认 embedding 正常 |
+
+---
+
+## 9. 版本与兼容约定
+
+- 后端接口版本以交付包内 `VERSION.txt` 为准。
+- 非破坏性升级允许新增字段，不删除既有字段。
+- 若存在破坏性变更，必须提升版本号并同步更新前端文档。

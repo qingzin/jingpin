@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS parts (
     part_number         VARCHAR,
     vehicle_model       VARCHAR,
     manufacturer        VARCHAR,
+    record_type         VARCHAR,        -- bom_part / pointcloud_only
+    pointcloud_path     VARCHAR,        -- 关联点云文件路径（单值）
 
     -- 层级结构
     level_array         VARCHAR[],      -- ['车身', '车门', '前左门', '密封条']
@@ -109,6 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_parts_file     ON parts(source_file);
 CREATE INDEX IF NOT EXISTS idx_parts_name     ON parts(part_name);
 CREATE INDEX IF NOT EXISTS idx_parts_partno   ON parts(part_number);
 CREATE INDEX IF NOT EXISTS idx_parts_surface  ON parts(surface_treat);
+CREATE INDEX IF NOT EXISTS idx_parts_record_type ON parts(record_type);
 """
 
 # 数值字段列表（入库时转换类型）
@@ -135,6 +138,8 @@ class DuckDBStore:
 
     def init_schema(self):
         self.conn.execute(CREATE_TABLE_SQL)
+        self.conn.execute("ALTER TABLE parts ADD COLUMN IF NOT EXISTS record_type VARCHAR")
+        self.conn.execute("ALTER TABLE parts ADD COLUMN IF NOT EXISTS pointcloud_path VARCHAR")
         self.conn.commit()
         logger.info(f"DuckDB schema 初始化完成：{self.db_path}")
 
@@ -166,6 +171,7 @@ class DuckDBStore:
         scalar_fields = [
             "source_file", "source_row", "part_name", "part_name_source",
             "name_confidence", "part_number", "vehicle_model", "manufacturer",
+            "record_type", "pointcloud_path",
             "level_depth", "material", "material_code", "material_type",
             "material_grade", "surface_treat", "process",
             "fastener_spec", "fastener_grade", "fastener_color",

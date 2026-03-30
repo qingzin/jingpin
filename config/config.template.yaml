@@ -1,0 +1,22 @@
+storage:
+  duckdb_path: db/bom.duckdb
+  qdrant_path: db/qdrant_storage
+  vector_dim: 1024
+
+input:
+  bom_folder: data/bom
+  pointcloud_root: data/pointcloud
+
+builder:
+  header_candidate_rows: [0, 1]
+  min_header_score: 1
+  drop_unnamed_columns: true
+  fail_report_path: output/fail_report.csv
+
+pointcloud:
+  extensions: [".stl", ".obj"]
+
+embedding:
+  enabled: true
+  api_key: "YOUR_BEARER_TOKEN"
+  model: bge-m3

@@ -76,7 +76,8 @@ class DummyPlanner:
         )
 
 
-def _invoke_app(app, method: str, path: str, payload: dict | None = None):
+def _invoke_app(app, method: str, path: str, payload: dict | None = None, query_string: str = ""):
+
     body = json.dumps(payload or {}).encode("utf-8")
     environ = {}
     setup_testing_defaults(environ)
@@ -84,6 +85,7 @@ def _invoke_app(app, method: str, path: str, payload: dict | None = None):
     environ["PATH_INFO"] = path
     environ["CONTENT_LENGTH"] = str(len(body))
     environ["wsgi.input"] = io.BytesIO(body)
+    environ["QUERY_STRING"] = query_string
     captured = {}
 
     def start_response(status, headers):
@@ -91,6 +93,8 @@ def _invoke_app(app, method: str, path: str, payload: dict | None = None):
         captured["headers"] = headers
 
     response_body = b"".join(app(environ, start_response))
+    if not response_body:
+        return captured["status"], {}
     return captured["status"], json.loads(response_body.decode("utf-8"))
 
 
@@ -187,3 +191,33 @@ def test_search_service_nl_requires_embedder(tmp_path):
     status, data = _invoke_app(app, "POST", "/search/nl", {"query": "查找前门铰链", "top_k": 5})
     assert status.startswith("400")
     assert "embedding" in data["error"]
+
+
+def test_search_service_health_has_cors_headers(tmp_path):
+    duck = DuckDBStore(tmp_path / "parts.duckdb")
+    duck.init_schema()
+    app = app_factory(DummyEngine(duck, with_embedder=True), planner=DummyPlanner(), pointcloud_root="")
+    status, _ = _invoke_app(app, "GET", "/health")
+    assert status.startswith("200")
+
+    environ = {}
+    setup_testing_defaults(environ)
+    environ["REQUEST_METHOD"] = "GET"
+    environ["PATH_INFO"] = "/health"
+    environ["CONTENT_LENGTH"] = "0"
+    environ["wsgi.input"] = io.BytesIO(b"")
+    captured = {}
+
+    def start_response(status_line, headers):
+        captured["headers"] = {k.lower(): v for k, v in headers}
+
+    _ = b"".join(app(environ, start_response))
+    assert captured["headers"].get("access-control-allow-origin") == "*"
+
+
+def test_search_service_options_preflight(tmp_path):
+    duck = DuckDBStore(tmp_path / "parts.duckdb")
+    duck.init_schema()
+    app = app_factory(DummyEngine(duck, with_embedder=True), planner=DummyPlanner(), pointcloud_root="")
+    status, _ = _invoke_app(app, "OPTIONS", "/health")
+    assert status.startswith("204")

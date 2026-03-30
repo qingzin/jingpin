@@ -25,11 +25,18 @@ from core.search_engine import QueryFilter, SearchEngine, SearchQuery
 from core.search_presenter import present_results
 
 
+CORS_HEADERS = [
+    ("Access-Control-Allow-Origin", "*"),
+    ("Access-Control-Allow-Headers", "Content-Type, Authorization"),
+    ("Access-Control-Allow-Methods", "GET,POST,OPTIONS"),
+]
+
+
 def json_response(start_response, status_code: int, data: dict):
     body = json.dumps(data, ensure_ascii=False, default=str).encode("utf-8")
     start_response(
         f"{status_code} OK",
-        [("Content-Type", "application/json; charset=utf-8"), ("Content-Length", str(len(body)))],
+        [("Content-Type", "application/json; charset=utf-8"), ("Content-Length", str(len(body))), *CORS_HEADERS],
     )
     return [body]
 
@@ -136,6 +143,10 @@ def app_factory(engine: SearchEngine, planner: NaturalLanguagePlanner | None, po
         path = environ.get("PATH_INFO", "")
         method = environ.get("REQUEST_METHOD", "GET").upper()
 
+        if method == "OPTIONS":
+            start_response("204 No Content", [("Content-Length", "0"), *CORS_HEADERS])
+            return [b""]
+
         if method == "GET" and path == "/health":
             llm_enabled = bool(
                 planner and planner.api_base and planner.api_key and planner.model
@@ -220,6 +231,7 @@ def app_factory(engine: SearchEngine, planner: NaturalLanguagePlanner | None, po
                 ("Content-Type", "application/octet-stream"),
                 ("Content-Disposition", f"attachment; filename*=UTF-8''{urllib.parse.quote(filename)}"),
                 ("Content-Length", str(len(data))),
+                *CORS_HEADERS,
             ])
             return [data]
 

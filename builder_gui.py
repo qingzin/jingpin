@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
-import os
 import threading
-import time
 from pathlib import Path
 
 from PySide6.QtCore import QTimer, Signal, QObject
@@ -27,6 +24,7 @@ from builder_tool import run_builder
 
 class LogBridge(QObject):
     line = Signal(str)
+    build_finished = Signal(bool, bool, str)
 
 
 class BuilderWindow(QMainWindow):
@@ -37,6 +35,7 @@ class BuilderWindow(QMainWindow):
 
         self.log_bridge = LogBridge()
         self.log_bridge.line.connect(self.append_log)
+        self.log_bridge.build_finished.connect(self.on_build_finished)
 
         self.worker: threading.Thread | None = None
         self.watching = False
@@ -157,18 +156,23 @@ class BuilderWindow(QMainWindow):
             try:
                 run_builder(cfg)
                 self.log_bridge.line.emit("建库完成。")
-                if self.watch_check.isChecked():
-                    self.start_watch()
-                else:
-                    self.status_lbl.setText("状态：建库完成")
+                self.log_bridge.build_finished.emit(True, self.watch_check.isChecked(), "")
             except Exception as e:
                 self.log_bridge.line.emit(f"建库失败：{e}")
-                self.status_lbl.setText("状态：失败")
-            finally:
-                self.run_btn.setEnabled(True)
+                self.log_bridge.build_finished.emit(False, False, str(e))
 
         self.worker = threading.Thread(target=job, daemon=True)
         self.worker.start()
+
+    def on_build_finished(self, ok: bool, should_watch: bool, error: str):
+        self.run_btn.setEnabled(True)
+        if not ok:
+            self.status_lbl.setText("状态：失败")
+            return
+        if should_watch:
+            self.start_watch()
+        else:
+            self.status_lbl.setText("状态：建库完成")
 
     def _scan_snapshot(self) -> dict[str, float]:
         snap: dict[str, float] = {}

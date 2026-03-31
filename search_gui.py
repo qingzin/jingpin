@@ -62,16 +62,22 @@ class SearchWindow(QMainWindow):
 
         query_row = QWidget()
         qh = QHBoxLayout(query_row)
-        self.query = QLineEdit("前门铰链")
+        self.query = QLineEdit("发动机总成")
         self.topk = QSpinBox()
         self.topk.setRange(1, 1000)
         self.topk.setValue(20)
         self.field = QComboBox()
+        self.field.setMinimumWidth(260)
         self.op = QComboBox()
         self.op.addItems(["=", "~", ">", ">=", "<", "<="])
+        self.op.setToolTip("~ 表示模糊匹配（等价于包含/LIKE）")
         self.value = QLineEdit()
         add_filter_btn = QPushButton("添加筛选")
         add_filter_btn.clicked.connect(self.add_filter)
+        remove_filter_btn = QPushButton("删除选中筛选")
+        remove_filter_btn.clicked.connect(self.remove_selected_filter)
+        clear_filter_btn = QPushButton("清空筛选")
+        clear_filter_btn.clicked.connect(self.clear_filters)
         self.search_btn = QPushButton("检索")
         self.search_btn.clicked.connect(self.search)
         self.search_btn.setEnabled(False)
@@ -84,8 +90,11 @@ class SearchWindow(QMainWindow):
         qh.addWidget(self.op)
         qh.addWidget(self.value, 2)
         qh.addWidget(add_filter_btn)
+        qh.addWidget(remove_filter_btn)
+        qh.addWidget(clear_filter_btn)
         qh.addWidget(self.search_btn)
         v.addWidget(query_row)
+        v.addWidget(QLabel("筛选操作符说明：`~` 表示模糊匹配（包含关系），例如 part_name ~ 铰链。"))
 
         self.filter_table = QTableWidget(0, 3)
         self.filter_table.setHorizontalHeaderLabels(["字段", "操作符", "值"])
@@ -149,6 +158,14 @@ class SearchWindow(QMainWindow):
             filters.append(QueryFilter(field=f.text(), op=o.text(), value=v.text()))
         return filters
 
+    def remove_selected_filter(self):
+        row = self.filter_table.currentRow()
+        if row >= 0:
+            self.filter_table.removeRow(row)
+
+    def clear_filters(self):
+        self.filter_table.setRowCount(0)
+
     def search(self):
         if self.engine is None:
             return
@@ -166,6 +183,9 @@ class SearchWindow(QMainWindow):
             self.last_rows = display["rows"]
 
             columns = [c["key"] for c in display["columns"]]
+            if "pointcloud_path" in columns:
+                columns.remove("pointcloud_path")
+                columns.insert(0, "pointcloud_path")
             self.result_table.setColumnCount(len(columns))
             self.result_table.setRowCount(len(display["rows"]))
             self.result_table.setHorizontalHeaderLabels(columns)

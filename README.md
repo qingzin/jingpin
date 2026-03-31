@@ -88,6 +88,13 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 - 确认 DuckDB/Qdrant 路径正确
 - 确认已先执行建库
 
+### 1.1) `ModuleNotFoundError: No module named 'PySide6'`
+- 这通常是 **Python 解释器不一致**：你安装 PySide6 的 conda 环境，和实际执行脚本/打包时使用的 Python 不是同一个。
+- 请先确认解释器：
+  - `python -c "import sys; print(sys.executable)"`
+  - `python -m pip show PySide6`
+- 再用同一个解释器执行打包脚本（脚本已包含 `pip install -r requirements.txt`）。
+
 ### 2) 检索不到结果
 - 尝试放宽筛选条件
 - 调大 `top_k`

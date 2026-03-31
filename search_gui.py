@@ -15,11 +15,14 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QProgressBar,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
+    QPlainTextEdit,
+    QSplitter,
 )
 
 from core.db_duckdb import DuckDBStore
@@ -40,7 +43,16 @@ class SearchWindow(QMainWindow):
 
         root = QWidget()
         self.setCentralWidget(root)
-        v = QVBoxLayout(root)
+        page = QVBoxLayout(root)
+
+        splitter = QSplitter(Qt.Horizontal)
+        page.addWidget(splitter)
+        left_panel = QWidget()
+        right_panel = QWidget()
+        splitter.addWidget(left_panel)
+        splitter.addWidget(right_panel)
+        splitter.setSizes([980, 300])
+        v = QVBoxLayout(left_panel)
 
         top = QWidget()
         form = QFormLayout(top)
@@ -114,6 +126,20 @@ class SearchWindow(QMainWindow):
         ah.addWidget(self.status)
         v.addWidget(actions)
 
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.addWidget(QLabel("运行日志"))
+        self.log_box = QPlainTextEdit()
+        self.log_box.setReadOnly(True)
+        right_layout.addWidget(self.log_box, 1)
+        right_layout.addWidget(QLabel("总进度"))
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        right_layout.addWidget(self.progress)
+
+    def append_log(self, text: str):
+        self.log_box.appendPlainText(text)
+
     def init_runtime(self):
         key = self.api_key.text().strip()
         if not key:
@@ -121,10 +147,16 @@ class SearchWindow(QMainWindow):
             return
 
         try:
+            self.progress.setValue(10)
+            self.append_log("初始化开始：连接 DuckDB...")
             duck = DuckDBStore(self.db.text().strip())
             duck.init_schema()
+            self.progress.setValue(30)
+            self.append_log("DuckDB 初始化完成，连接 Qdrant...")
             qdrant = QdrantStore(self.qdrant.text().strip())
             qdrant.init_collection(dim=1024)
+            self.progress.setValue(60)
+            self.append_log("Qdrant 初始化完成，创建 embedder...")
             embedder = BGEEmbedder(api_key=key, model=self.model.text().strip() or "bge-m3")
             self.engine = SearchEngine(duck_store=duck, qdrant_store=qdrant, embedder=embedder)
             self.search_btn.setEnabled(True)
@@ -132,7 +164,11 @@ class SearchWindow(QMainWindow):
             fields = [f["field"] for f in self.engine.supported_fields()]
             self.field.clear()
             self.field.addItems(fields)
+            self.progress.setValue(100)
+            self.append_log(f"初始化完成：已加载可筛选字段 {len(fields)} 个。")
         except Exception as e:
+            self.progress.setValue(0)
+            self.append_log(f"初始化失败：{e}")
             QMessageBox.critical(self, "初始化失败", str(e))
 
     def add_filter(self):
@@ -170,6 +206,8 @@ class SearchWindow(QMainWindow):
         if self.engine is None:
             return
         try:
+            self.progress.setValue(10)
+            self.append_log(f"开始检索：query={self.query.text().strip()} top_k={int(self.topk.value())}")
             q = SearchQuery(
                 semantic_query=self.query.text().strip(),
                 target_component=infer_target_component(self.query.text().strip()),
@@ -177,7 +215,10 @@ class SearchWindow(QMainWindow):
                 top_k=int(self.topk.value()),
                 strategy="semantic_first",
             )
+            self.progress.setValue(35)
+            self.append_log(f"筛选条件数：{len(q.filters)}")
             response = self.engine.search(q)
+            self.progress.setValue(65)
             result = response["result"]
             display = present_results(result["results"], response["query"].filters)
             self.last_rows = display["rows"]
@@ -195,7 +236,11 @@ class SearchWindow(QMainWindow):
                     self.result_table.setItem(i, j, QTableWidgetItem("" if val is None else str(val)))
 
             self.status.setText(f"状态：命中 {len(display['rows'])} 条，候选 {result['candidate_count']}，耗时 {result['elapsed_ms']}ms")
+            self.progress.setValue(100)
+            self.append_log(f"检索完成：命中 {len(display['rows'])} 条，候选 {result['candidate_count']}，耗时 {result['elapsed_ms']}ms")
         except Exception as e:
+            self.progress.setValue(0)
+            self.append_log(f"检索失败：{e}")
             QMessageBox.critical(self, "检索失败", str(e))
 
     def download_pointcloud(self):
@@ -215,6 +260,7 @@ class SearchWindow(QMainWindow):
         if not dst:
             return
         shutil.copyfile(src, dst)
+        self.append_log(f"点云下载完成：{dst}")
         QMessageBox.information(self, "完成", f"已保存到：{dst}")
 
 

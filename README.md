@@ -95,6 +95,13 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
   - `python -m pip show PySide6`
 - 再用同一个解释器执行打包脚本（脚本已包含 `pip install -r requirements.txt`）。
 
+### 1.2) `ImportError: DLL load failed while importing QtCore`
+- 这通常是 Qt 运行时 DLL 缺失或系统 VC++ 运行库缺失导致。
+- 处理步骤：
+  1. 先删除旧产物：`build/`、`dist/` 后重新执行打包脚本。
+  2. 确认打包日志中包含 PySide6/shiboken6 收集信息（spec 已配置 collect_all）。
+  3. 在目标 Windows 机器安装 **Microsoft Visual C++ Redistributable 2015-2022 (x64)** 后重试。
+
 ### 2) 检索不到结果
 - 尝试放宽筛选条件
 - 调大 `top_k`

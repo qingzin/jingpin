@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 a = Analysis(
-    ['../search_service.py'],
+    ['../search_gui.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -20,12 +20,12 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='search_service',
+    name='search_gui',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
 )

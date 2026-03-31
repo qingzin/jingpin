@@ -21,7 +21,7 @@ from core.column_normalizer import ColumnNormalizer
 from core.db_duckdb import DuckDBStore
 from core.db_qdrant import QdrantStore
 from core.embedder import BGEEmbedder, build_qdrant_payload
-from ingestion_pipeline import DEFAULT_CONFIG, detect_header_row, process_single_file
+from ingestion_pipeline import DEFAULT_CONFIG, detect_header_row, process_single_file, derive_vehicle_name_from_filename
 
 logger = logging.getLogger("builder_tool")
 logging.basicConfig(
@@ -209,8 +209,18 @@ def run_builder(config: dict):
     bom_files = iter_bom_files(bom_folder)
     logger.info(f"发现 BOM 文件 {len(bom_files)} 个")
 
+    run_mode = str(builder_cfg.get("run_mode", "full")).lower()
+    existing_sources = set()
+    if run_mode == "incremental":
+        rows = duck.conn.execute("SELECT DISTINCT source_file FROM parts WHERE source_file IS NOT NULL").fetchall()
+        existing_sources = {str(r[0]) for r in rows}
+
     for fp in bom_files:
         try:
+            source_name = derive_vehicle_name_from_filename(fp.name)
+            if run_mode == "incremental" and source_name in existing_sources:
+                logger.info(f"增量模式跳过已存在来源文件: {fp.name}")
+                continue
             header_row, header_meta = detect_header_row(
                 fp,
                 normalizer=normalizer,

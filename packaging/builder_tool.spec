@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 a = Analysis(
-    ['../builder_tool.py'],
+    ['../builder_gui.py'],
     pathex=[],
     binaries=[],
     datas=[('../config/column_mapping.json', 'config')],
@@ -27,5 +27,5 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
 )

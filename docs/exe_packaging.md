@@ -3,7 +3,7 @@
 本文档说明如何在 **Windows** 环境下把项目打包成两个可执行文件并交付前端团队：
 
 - `builder_tool.exe`：建库工具
-- `search_service.exe`：检索服务（强制要求 API Key）
+- `search_gui.exe`：检索 GUI（强制要求 API Key）
 
 > 说明：在 Linux/macOS 上无法直接产出 Windows `.exe`，请在目标 Windows 环境执行以下步骤。
 
@@ -39,7 +39,7 @@ packaging\build_exe.bat
 打包完成后，输出在：
 
 - `dist/builder_tool.exe`
-- `dist/search_service.exe`
+- `dist/search_gui.exe`
 
 ---
 
@@ -49,10 +49,10 @@ packaging\build_exe.bat
 delivery/
 ├─ backend/
 │  ├─ builder_tool.exe
-│  ├─ search_service.exe
+│  ├─ search_gui.exe
 │  ├─ config.template.yaml
 │  ├─ start_builder.bat
-│  ├─ start_search_service.bat
+│  ├─ start_search_gui.bat
 │  └─ VERSION.txt
 ├─ db/
 │  ├─ bom.duckdb
@@ -72,53 +72,31 @@ delivery/
 
 ### 5.1 建库工具
 
-先复制配置模板：
+双击 `builder_tool.exe`，在界面中输入模型名、API Key、DB 路径、BOM 目录、点云目录后点击“一键建库”。
+
+### 5.2 检索 GUI（API Key 必填）
 
 ```powershell
-copy config\config.template.yaml config.yaml
-```
-
-修改 `config.yaml` 后运行：
-
-```powershell
-.\dist\builder_tool.exe --config config.yaml --run-mode full
-```
-
-### 5.2 检索服务（API Key 必填）
-
-```powershell
-.\dist\search_service.exe --db db\bom.duckdb --qdrant db\qdrant_storage --api-key <YOUR_API_KEY> --model bge-m3 --host 0.0.0.0 --port 8080 --pointcloud-root data\pointcloud
+.\dist\search_gui.exe
 ```
 
 ---
 
-## 6. 前端联调最小接口
+## 6. 检索 GUI 功能验收
 
-- `GET /health`
-- `GET /fields`
-- `POST /search`
-- `POST /search/nl`
-- `GET /download?path=...`
-
-示例：
-
-```powershell
-curl http://127.0.0.1:8080/health
-```
-
-```powershell
-curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json" -d '{"query":"前门铰链","top_k":20}'
-```
+- 输入 API Key 初始化检索能力
+- 支持语义查询 + 属性筛选
+- 结果动态展示数据库属性字段
+- 支持点云文件下载
 
 ---
 
 ## 7. 前端团队 10 分钟验收流程
 
-1. 启动 `search_service.exe`（提供有效 `--api-key`）。
-2. 调用 `/health`，确认 `status=ok` 且 `semantic_enabled=true`。
-3. 调用 `/search` 获取结果并检查 `display.rows` 与 `results`。
-4. 若有点云路径，点击 `pointcloud_download_url` 验证下载。
-5. 调用 `/search/nl` 验证自然语言查询链路。
+1. 启动 `search_gui.exe` 并输入有效 API Key。
+2. 输入查询词执行检索，确认返回结果。
+3. 增加数值/文本筛选，确认结果随条件变化。
+4. 选中含点云路径的记录，点击下载并验证文件可保存。
 
 ---
 

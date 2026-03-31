@@ -5,3 +5,4 @@ qdrant-client
 requests
 tqdm
 PyYAML
+PySide6

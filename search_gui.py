@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import shutil
+import threading
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -31,15 +32,24 @@ from core.embedder import BGEEmbedder
 from core.query_parser import infer_target_component
 from core.search_engine import QueryFilter, SearchEngine, SearchQuery
 from core.search_presenter import present_results
+from builder_tool import run_builder
 
 
 class SearchWindow(QMainWindow):
+    build_progress_signal = Signal(str, int, int, str)
+    build_done_signal = Signal(bool, str)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("零部件检索（PySide6）")
         self.resize(1280, 780)
         self.engine: SearchEngine | None = None
         self.last_rows: list[dict] = []
+        self.build_worker: threading.Thread | None = None
+        self.build_totals: dict[str, int] = {"bom": 0, "pointcloud": 0}
+        self.building = False
+        self.build_progress_signal.connect(self.on_build_progress)
+        self.build_done_signal.connect(self.on_build_done)
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -122,11 +132,21 @@ class SearchWindow(QMainWindow):
         self.download_btn = QPushButton("下载选中点云")
         self.download_btn.clicked.connect(self.download_pointcloud)
         ah.addWidget(self.download_btn)
+        self.build_btn = QPushButton("在检索界面执行建库")
+        self.build_btn.clicked.connect(self.start_build_from_search)
+        ah.addWidget(self.build_btn)
         self.status = QLabel("状态：未初始化")
         ah.addWidget(self.status)
         v.addWidget(actions)
 
         right_layout = QVBoxLayout(right_panel)
+        right_layout.addWidget(QLabel("建库输入（用于右侧进度监控）"))
+        self.bom_folder = QLineEdit(str(Path("data/bom").resolve()))
+        self.pointcloud_folder = QLineEdit(str(Path("data/pointcloud").resolve()))
+        right_layout.addWidget(QLabel("BOM 文件夹"))
+        right_layout.addWidget(self.bom_folder)
+        right_layout.addWidget(QLabel("点云文件夹"))
+        right_layout.addWidget(self.pointcloud_folder)
         right_layout.addWidget(QLabel("运行日志"))
         self.log_box = QPlainTextEdit()
         self.log_box.setReadOnly(True)
@@ -139,6 +159,87 @@ class SearchWindow(QMainWindow):
 
     def append_log(self, text: str):
         self.log_box.appendPlainText(text)
+
+    def build_config(self) -> dict:
+        return {
+            "storage": {
+                "duckdb_path": self.db.text().strip(),
+                "qdrant_path": self.qdrant.text().strip(),
+                "vector_dim": 1024,
+            },
+            "input": {
+                "bom_folder": self.bom_folder.text().strip(),
+                "pointcloud_root": self.pointcloud_folder.text().strip(),
+            },
+            "builder": {
+                "header_candidate_rows": [0, 1],
+                "min_header_score": 1,
+                "drop_unnamed_columns": True,
+                "fail_report_path": "output/fail_report.csv",
+                "run_mode": "incremental",
+            },
+            "pointcloud": {"extensions": [".stl", ".obj"]},
+            "embedding": {
+                "enabled": True,
+                "api_key": self.api_key.text().strip(),
+                "model": self.model.text().strip() or "bge-m3",
+            },
+        }
+
+    def start_build_from_search(self):
+        if self.building or (self.build_worker and self.build_worker.is_alive()):
+            QMessageBox.warning(self, "提示", "建库任务正在运行")
+            return
+        self.building = True
+        self.build_btn.setEnabled(False)
+        self.progress.setValue(0)
+        self.append_log("建库开始...")
+        cfg = self.build_config()
+
+        def cb(stage: str, current: int, total: int, name: str):
+            self.build_progress_signal.emit(stage, current, total, name)
+
+        def job():
+            try:
+                run_builder(cfg, progress_cb=cb)
+                self.build_done_signal.emit(True, "")
+            except Exception as e:
+                self.build_done_signal.emit(False, str(e))
+
+        self.build_worker = threading.Thread(target=job, daemon=True)
+        self.build_worker.start()
+
+    def on_build_progress(self, stage: str, current: int, total: int, name: str):
+        if stage == "bom_total":
+            self.build_totals["bom"] = total
+            self.append_log(f"BOM 总待处理文件：{total}")
+            return
+        if stage == "pointcloud_total":
+            self.build_totals["pointcloud"] = total
+            self.append_log(f"点云总待处理文件：{total}")
+            return
+        if stage == "bom_processing":
+            self.append_log(f"[BOM] 当前处理：{current}/{max(total, 1)} -> {name}")
+            part = int((current / max(total, 1)) * 70)
+            self.progress.setValue(part)
+            return
+        if stage == "pointcloud_processing":
+            self.append_log(f"[点云] 当前处理：{current}/{max(total, 1)} -> {name}")
+            part = 70 + int((current / max(total, 1)) * 30)
+            self.progress.setValue(part)
+            return
+        if stage == "done":
+            self.progress.setValue(100)
+
+    def on_build_done(self, ok: bool, error: str):
+        self.building = False
+        self.build_btn.setEnabled(True)
+        if ok:
+            self.append_log("建库完成。")
+        else:
+            self.progress.setValue(0)
+            self.append_log(f"建库失败：{error}")
+            QMessageBox.critical(self, "建库失败", error)
 
     def init_runtime(self):
         key = self.api_key.text().strip()

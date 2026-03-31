@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QCheckBox,
     QWidget,
+    QProgressBar,
 )
 
 from builder_tool import run_builder
@@ -25,6 +26,7 @@ from builder_tool import run_builder
 class LogBridge(QObject):
     line = Signal(str)
     build_finished = Signal(bool, bool, str)
+    progress = Signal(str, int, int, str)
 
 
 class BuilderWindow(QMainWindow):
@@ -36,6 +38,7 @@ class BuilderWindow(QMainWindow):
         self.log_bridge = LogBridge()
         self.log_bridge.line.connect(self.append_log)
         self.log_bridge.build_finished.connect(self.on_build_finished)
+        self.log_bridge.progress.connect(self.on_progress)
 
         self.worker: threading.Thread | None = None
         self.watching = False
@@ -85,6 +88,10 @@ class BuilderWindow(QMainWindow):
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
         right_layout.addWidget(self.log)
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        form.addRow("总进度", self.progress)
 
         self.watch_timer = QTimer(self)
         self.watch_timer.setInterval(5000)
@@ -151,10 +158,11 @@ class BuilderWindow(QMainWindow):
         self.status_lbl.setText("状态：建库中...")
         cfg = self.cfg()
         self.log_bridge.line.emit("开始建库...")
+        self.progress.setValue(0)
 
         def job():
             try:
-                run_builder(cfg)
+                run_builder(cfg, progress_cb=lambda s, c, t, n: self.log_bridge.progress.emit(s, c, t, n))
                 self.log_bridge.line.emit("建库完成。")
                 self.log_bridge.build_finished.emit(True, self.watch_check.isChecked(), "")
             except Exception as e:
@@ -168,11 +176,31 @@ class BuilderWindow(QMainWindow):
         self.run_btn.setEnabled(True)
         if not ok:
             self.status_lbl.setText("状态：失败")
+            self.progress.setValue(0)
             return
         if should_watch:
             self.start_watch()
         else:
             self.status_lbl.setText("状态：建库完成")
+            self.progress.setValue(100)
+
+    def on_progress(self, stage: str, current: int, total: int, name: str):
+        if stage == "bom_total":
+            self.append_log(f"BOM 总待处理文件：{total}")
+            return
+        if stage == "pointcloud_total":
+            self.append_log(f"点云总待处理文件：{total}")
+            return
+        if stage == "bom_processing":
+            self.append_log(f"[BOM] 当前处理：{current}/{max(total, 1)} -> {name}")
+            self.progress.setValue(int((current / max(total, 1)) * 70))
+            return
+        if stage == "pointcloud_processing":
+            self.append_log(f"[点云] 当前处理：{current}/{max(total, 1)} -> {name}")
+            self.progress.setValue(70 + int((current / max(total, 1)) * 30))
+            return
+        if stage == "done":
+            self.progress.setValue(100)
 
     def _scan_snapshot(self) -> dict[str, float]:
         snap: dict[str, float] = {}

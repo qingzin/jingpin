@@ -99,8 +99,11 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 - 这通常是 Qt 运行时 DLL 缺失或系统 VC++ 运行库缺失导致。
 - 处理步骤：
   1. 先删除旧产物：`build/`、`dist/` 后重新执行打包脚本。
-  2. 确认打包日志中包含 PySide6/shiboken6 收集信息（spec 已配置 collect_all）。
-  3. 在目标 Windows 机器安装 **Microsoft Visual C++ Redistributable 2015-2022 (x64)** 后重试。
+  2. 打包前先做预检查：`python -c "import PySide6, PySide6.QtCore as QtCore; print(PySide6.__file__); print(QtCore.__file__)"`。
+  3. 确认不要混用解释器（例如日志里同时出现 `Python313` 的 site-packages 和 `miniforge3` 路径）。建议显式指定解释器运行打包脚本：  
+     - PowerShell：`packaging\\build_exe.ps1 -Python D:\\ProgramData\\miniforge3\\python.exe`  
+     - CMD：`packaging\\build_exe.bat D:\\ProgramData\\miniforge3\\python.exe`
+  4. 在目标 Windows 机器安装 **Microsoft Visual C++ Redistributable 2015-2022 (x64)** 后重试。
 
 ### 2) 检索不到结果
 - 尝试放宽筛选条件

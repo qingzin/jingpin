@@ -25,10 +25,11 @@ def _normalize(path: str) -> str:
     return str(PurePosixPath(path.replace('\\', '/'))).lower()
 
 
-def _keep_binary(item: tuple[str, str, str]) -> bool:
-    src, _, _ = item
-    p = _normalize(src)
-    return not any(p.endswith(name) for name in EXCLUDED_BINARY_SUFFIXES)
+def _keep_binary(item: tuple) -> bool:
+    paths = [_normalize(part) for part in item if isinstance(part, str)]
+    if not paths:
+        return True
+    return not any(path.endswith(name) for path in paths for name in EXCLUDED_BINARY_SUFFIXES)
 
 
 def _keep_hiddenimport(name: str) -> bool:

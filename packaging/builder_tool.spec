@@ -1,12 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+from PyInstaller.utils.hooks import collect_all
+
+pyside_datas, pyside_binaries, pyside_hiddenimports = collect_all('PySide6')
+shiboken_datas, shiboken_binaries, shiboken_hiddenimports = collect_all('shiboken6')
 
 a = Analysis(
     ['../builder_gui.py'],
     pathex=[],
-    binaries=[*collect_dynamic_libs('PySide6'), *collect_dynamic_libs('shiboken6')],
-    datas=[('../config/column_mapping.json', 'config'), *collect_data_files('PySide6')],
-    hiddenimports=['yaml', 'PySide6', 'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets'],
+    binaries=[*pyside_binaries, *shiboken_binaries],
+    datas=[('../config/column_mapping.json', 'config'), *pyside_datas, *shiboken_datas],
+    hiddenimports=[*pyside_hiddenimports, *shiboken_hiddenimports],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

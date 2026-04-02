@@ -3,6 +3,10 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
+from qt_bootstrap import configure_qt_runtime
+
+configure_qt_runtime()
+
 from PySide6.QtCore import QTimer, Signal, QObject
 from PySide6.QtWidgets import (
     QApplication,

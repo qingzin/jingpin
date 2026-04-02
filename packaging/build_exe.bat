@@ -16,9 +16,9 @@ echo [2/4] Install pyinstaller...
 if errorlevel 1 exit /b 1
 
 echo [3/5] Preflight check (Python/PySide6/QtCore)...
-%PY% -c "import sys; print('python=', sys.executable); import PySide6, PySide6.QtCore as QtCore; print('PySide6=', PySide6.__file__); print('QtCore=', QtCore.__file__)"
+%PY% tools/check_qt_env.py
 if errorlevel 1 (
-  echo PySide6/QtCore import failed. Please ensure this exact Python can import PySide6 before packaging.
+  echo Preflight failed. Fix PySide6 runtime first, then re-run this script.
   exit /b 1
 )
 

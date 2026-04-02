@@ -96,14 +96,15 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 - 再用同一个解释器执行打包脚本（脚本已包含 `pip install -r requirements.txt`）。
 
 ### 1.2) `ImportError: DLL load failed while importing QtCore`
-- 这通常是 Qt 运行时 DLL 缺失或系统 VC++ 运行库缺失导致。
+- `builder_gui.py` 和 `search_gui.py` 同时报这个错，通常说明是 **本机 Python + PySide6 运行时环境** 问题，不是某个 GUI 脚本本身的问题。
 - 处理步骤：
-  1. 先删除旧产物：`build/`、`dist/` 后重新执行打包脚本。
-  2. 打包前先做预检查：`python -c "import PySide6, PySide6.QtCore as QtCore; print(PySide6.__file__); print(QtCore.__file__)"`。
-  3. 确认不要混用解释器（例如日志里同时出现 `Python313` 的 site-packages 和 `miniforge3` 路径）。建议显式指定解释器运行打包脚本：  
-     - PowerShell：`packaging\\build_exe.ps1 -Python D:\\ProgramData\\miniforge3\\python.exe`  
-     - CMD：`packaging\\build_exe.bat D:\\ProgramData\\miniforge3\\python.exe`
+  1. 先运行诊断脚本：`python tools/check_qt_env.py`。
+  2. 确认不要混用解释器（例如日志里同时出现 `Python313` 的 site-packages 和 `miniforge3` 路径）。建议显式指定解释器运行打包脚本：  
+     - PowerShell：`packaging\build_exe.ps1 -Python D:\ProgramData\miniforge3\python.exe`  
+     - CMD：`packaging\build_exe.bat D:\ProgramData\miniforge3\python.exe`
+  3. 用同一个解释器重装 PySide6：`python -m pip uninstall -y PySide6 shiboken6 && python -m pip install --no-cache-dir PySide6`
   4. 在目标 Windows 机器安装 **Microsoft Visual C++ Redistributable 2015-2022 (x64)** 后重试。
+  5. 删除旧产物 `build/`、`dist/` 后再执行打包脚本（脚本第 3 步会自动调用诊断）。
 
 ### 1.3) `NumPy was built with baseline optimizations (X86_V2)`
 - 这是目标机器 CPU 指令集较老，和当前打包环境里安装的 NumPy 二进制不兼容导致。

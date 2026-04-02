@@ -13,7 +13,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 import yaml
 
@@ -21,7 +21,7 @@ from core.column_normalizer import ColumnNormalizer
 from core.db_duckdb import DuckDBStore
 from core.db_qdrant import QdrantStore
 from core.embedder import BGEEmbedder, build_qdrant_payload
-from ingestion_pipeline import DEFAULT_CONFIG, detect_header_row, process_single_file
+from ingestion_pipeline import DEFAULT_CONFIG, detect_header_row, process_single_file, derive_vehicle_name_from_filename
 
 logger = logging.getLogger("builder_tool")
 logging.basicConfig(
@@ -169,7 +169,7 @@ def attach_pointcloud_path_to_part(
     duck.conn.commit()
 
 
-def run_builder(config: dict):
+def run_builder(config: dict, progress_cb: Optional[Callable[[str, int, int, str], None]] = None):
     cfg = {**DEFAULT_CONFIG, **config.get("storage", {})}
     builder_cfg = config.get("builder", {})
     input_cfg = config.get("input") or config.get("inputs") or {}
@@ -208,9 +208,23 @@ def run_builder(config: dict):
 
     bom_files = iter_bom_files(bom_folder)
     logger.info(f"发现 BOM 文件 {len(bom_files)} 个")
+    if progress_cb:
+        progress_cb("bom_total", 0, len(bom_files), "")
 
-    for fp in bom_files:
+    run_mode = str(builder_cfg.get("run_mode", "full")).lower()
+    existing_sources = set()
+    if run_mode == "incremental":
+        rows = duck.conn.execute("SELECT DISTINCT source_file FROM parts WHERE source_file IS NOT NULL").fetchall()
+        existing_sources = {str(r[0]) for r in rows}
+
+    for idx, fp in enumerate(bom_files, start=1):
+        if progress_cb:
+            progress_cb("bom_processing", idx, len(bom_files), fp.name)
         try:
+            source_name = derive_vehicle_name_from_filename(fp.name)
+            if run_mode == "incremental" and source_name in existing_sources:
+                logger.info(f"增量模式跳过已存在来源文件: {fp.name}")
+                continue
             header_row, header_meta = detect_header_row(
                 fp,
                 normalizer=normalizer,
@@ -241,10 +255,14 @@ def run_builder(config: dict):
 
     pc_entries = scan_pointcloud_files(pointcloud_root, pc_cfg.get("extensions", [".stl", ".obj"]))
     logger.info(f"发现点云文件 {len(pc_entries)} 个")
+    if progress_cb:
+        progress_cb("pointcloud_total", 0, len(pc_entries), "")
 
     linked = 0
     created_only = 0
-    for entry in pc_entries:
+    for idx, entry in enumerate(pc_entries, start=1):
+        if progress_cb:
+            progress_cb("pointcloud_processing", idx, len(pc_entries), entry.pointcloud_name)
         try:
             part_id = find_part_id_by_vehicle_and_name(
                 duck,
@@ -282,6 +300,8 @@ def run_builder(config: dict):
         "total_failed": len(failures),
         "fail_report": str(fail_report_path),
     }
+    if progress_cb:
+        progress_cb("done", summary.get("bom_success", 0) + summary.get("pointcloud_linked", 0), summary.get("bom_files", 0) + summary.get("pointcloud_files", 0), "")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

@@ -1,11 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 a = Analysis(
-    ['../search_service.py'],
+    ['../search_gui.py'],
     pathex=[],
-    binaries=[],
-    datas=[],
-    hiddenimports=[],
+    binaries=[*collect_dynamic_libs('PySide6'), *collect_dynamic_libs('shiboken6')],
+    datas=[*collect_data_files('PySide6')],
+    hiddenimports=['PySide6', 'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -20,12 +21,12 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='search_service',
+    name='search_gui',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
 )

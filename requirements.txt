@@ -1,7 +1,9 @@
-duckdb
-openpyxl
-pandas
-qdrant-client
-requests
-tqdm
-PyYAML
+numpy==1.26.4
+duckdb==1.1.3
+openpyxl==3.1.5
+pandas==2.2.3
+qdrant-client==1.11.1
+requests==2.32.3
+tqdm==4.67.1
+PyYAML==6.0.2
+PySide6==6.7.3

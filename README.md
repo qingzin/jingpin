@@ -1,84 +1,137 @@
-# BOM + 点云后端工具交付说明（EXE）
+# BOM + 点云工具（Windows GUI EXE 交付）
 
-本文档面向拿到交付包的前端/测试同学，只说明如何在 Windows 上直接使用 EXE 完成建库与检索。
+本项目提供两个可在 Windows 上双击运行的 GUI 程序：
 
-## 1. 交付物
+- `builder_tool.exe`：建库 GUI（BOM+点云入库，支持增量更新与持续监控）
+- `search_gui.exe`：检索 GUI（语义检索 + 属性筛选 + 点云下载）
 
-最少应包含：
+---
+
+## 一、你在 Windows 电脑上需要执行的操作
+
+> 以下步骤只需要在 Windows 执行一次（首次打包/部署时）。
+
+### 1) 安装 Python 与依赖
+
+1. 安装 Python 3.10+（勾选 `Add Python to PATH`）
+2. 打开 PowerShell，进入项目目录：
+
+```powershell
+cd <你的项目目录>\jingpin
+```
+
+3. 安装依赖：
+
+```powershell
+python -m pip install -r requirements.txt
+python -m pip install pyinstaller
+```
+
+> 兼容性说明（旧 VDI / 旧 CPU）：
+> - 当前依赖已做版本固定，核心组合为 `numpy==1.26.4 + pandas==2.2.3`，用于降低在旧 CPU 上触发 `X86_V2` 指令集错误的概率。
+> - 若你升级其他包版本，请优先在旧设备上验证再发版。
+
+---
+
+### 2) 打包两个 EXE
+
+执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
+```
+
+打包后会在 `dist/` 目录得到：
 
 - `dist/builder_tool.exe`
-- `dist/search_service.exe`
-- `config/config.template.yaml`
-- `db/`（建库后会生成或更新 `bom.duckdb`、`qdrant_storage`）
-- `data/pointcloud/`（如需下载点云）
+- `dist/search_gui.exe`
 
 ---
 
-## 2. 建库执行
+### 3) 运行建库 GUI（builder_tool.exe）
 
-1. 复制配置模板：
+双击 `dist/builder_tool.exe` 后：
 
-```powershell
-copy config\config.template.yaml config.yaml
-```
+1. 输入 `Embedding 模型名`（默认 `bge-m3`）
+2. 输入 `API Key`
+3. 选择 `DuckDB 路径`
+4. 选择 `Qdrant 存储目录`
+5. 选择 `BOM 表路径文件夹`
+6. 选择 `点云数据文件夹`
+7. 点击 **一键建库**
 
-2. 修改 `config.yaml` 中 BOM 目录、点云目录、存储目录等参数。
-
-3. 执行建库：
-
-```powershell
-.\dist\builder_tool.exe --config config.yaml --run-mode full
-```
-
----
-
-## 3. 启动检索服务
-
-> `--api-key` 必填。
-
-```powershell
-.\dist\search_service.exe --db db\bom.duckdb --qdrant db\qdrant_storage --api-key <YOUR_API_KEY> --model bge-m3 --host 0.0.0.0 --port 8080 --pointcloud-root data\pointcloud
-```
-
-服务默认示例地址：`http://127.0.0.1:8080`
+功能说明：
+- 若数据库已存在，默认按增量模式处理（跳过已存在来源文件）
+- 勾选“持续监控”时，程序会每 5 秒扫描 BOM/点云文件夹
+- 检测到新增或更新文件后，会自动执行增量更新
 
 ---
 
-## 4. 联调接口
+### 4) 运行检索 GUI（search_gui.exe）
 
-- `GET /health`
-- `GET /fields`
-- `POST /search`
-- `POST /search/nl`
-- `GET /download?path=...`
+双击 `dist/search_gui.exe` 后：
 
-示例：
+1. 输入 `API Key`（必填）
+2. 设置 `DuckDB` 与 `Qdrant` 路径
+3. 点击 **初始化检索**
+4. 输入查询词（例如“前门铰链”）
+5. 选择筛选字段/操作符/值并添加筛选
+6. 点击 **检索**
 
-```powershell
-curl http://127.0.0.1:8080/health
-```
-
-```powershell
-curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json" -d '{"query":"前门铰链","top_k":20}'
-```
+结果特点：
+- 展示数据库中的动态属性列（不是固定死列）
+- 支持模糊匹配（`~`）与数值比较（`>=` `<=` 等）
+- 可选中一条结果并点击 **下载选中点云** 保存本地文件
 
 ---
 
-## 5. 搜索示例前端
+## 二、常见问题
 
-交付包内示例前端目录：`frontend/search-demo`。
+### 1) 初始化检索失败
+- 先确认 API Key 有效
+- 确认 DuckDB/Qdrant 路径正确
+- 确认已先执行建库
 
-运行后可验证：
-- 健康检查
-- 结构化搜索 / 自然语言搜索
-- 重量/长宽高深筛选
-- 点云下载按钮
+### 1.1) `ModuleNotFoundError: No module named 'PySide6'`
+- 这通常是 **Python 解释器不一致**：你安装 PySide6 的 conda 环境，和实际执行脚本/打包时使用的 Python 不是同一个。
+- 请先确认解释器：
+  - `python -c "import sys; print(sys.executable)"`
+  - `python -m pip show PySide6`
+- 再用同一个解释器执行打包脚本（脚本已包含 `pip install -r requirements.txt`）。
 
-详细字段与前端约定见：`docs/frontend_integration.md`。
+### 1.2) `ImportError: DLL load failed while importing QtCore`
+- 这通常是 Qt 运行时 DLL 缺失或系统 VC++ 运行库缺失导致。
+- 处理步骤：
+  1. 先删除旧产物：`build/`、`dist/` 后重新执行打包脚本。
+  2. 打包前先做预检查：`python -c "import PySide6, PySide6.QtCore as QtCore; print(PySide6.__file__); print(QtCore.__file__)"`。
+  3. 确认不要混用解释器（例如日志里同时出现 `Python313` 的 site-packages 和 `miniforge3` 路径）。建议显式指定解释器运行打包脚本：  
+     - PowerShell：`packaging\\build_exe.ps1 -Python D:\\ProgramData\\miniforge3\\python.exe`  
+     - CMD：`packaging\\build_exe.bat D:\\ProgramData\\miniforge3\\python.exe`
+  4. 在目标 Windows 机器安装 **Microsoft Visual C++ Redistributable 2015-2022 (x64)** 后重试。
+  5. 当前 spec 已关闭 UPX 压缩（`upx=False`）。如果你本地改过 spec，请确认不要对 Qt 相关 DLL 做 UPX 压缩。
+
+### 1.3) `NumPy was built with baseline optimizations (X86_V2)`
+- 这是目标机器 CPU 指令集较老，和当前打包环境里安装的 NumPy 二进制不兼容导致。
+- 项目已固定 `numpy==1.26.4`（兼容性更好），请先重新安装依赖再打包：
+  - `python -m pip install -r requirements.txt --force-reinstall`
+- 然后删除旧产物 `build/`、`dist/` 后重新执行打包脚本。
+
+### 2) 检索不到结果
+- 尝试放宽筛选条件
+- 调大 `top_k`
+- 检查建库时 BOM 与点云目录是否正确
+
+### 3) 点云下载失败
+- 结果中没有 `pointcloud_path`
+- 或原始点云文件已被移动/删除
 
 ---
 
-## 6. 更多说明
+## 三、开发者说明
 
-- EXE 打包说明：`docs/exe_packaging.md`
-- 后端工具说明：`docs/backend_tools.md`
+- 建库 GUI 入口：`builder_gui.py`
+- 检索 GUI 入口：`search_gui.py`
+- 兼容 CLI 建库脚本：`builder_tool.py`
+- 打包 spec：
+  - `packaging/builder_tool.spec`
+  - `packaging/search_service.spec`

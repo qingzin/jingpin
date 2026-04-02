@@ -1,11 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 a = Analysis(
-    ['../builder_tool.py'],
+    ['../builder_gui.py'],
     pathex=[],
-    binaries=[],
-    datas=[('../config/column_mapping.json', 'config')],
-    hiddenimports=['yaml'],
+    binaries=[*collect_dynamic_libs('PySide6'), *collect_dynamic_libs('shiboken6')],
+    datas=[('../config/column_mapping.json', 'config'), *collect_data_files('PySide6')],
+    hiddenimports=['yaml', 'PySide6', 'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -24,8 +25,8 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
 )

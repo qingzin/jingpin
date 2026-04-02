@@ -107,7 +107,7 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 
 ### 1.3) `NumPy was built with baseline optimizations (X86_V2)`
 - 这是目标机器 CPU 指令集较老，和当前打包环境里安装的 NumPy 二进制不兼容导致。
-- 项目已固定 `numpy==1.26.4`（兼容性更好），请先重新安装依赖再打包：
+- 项目已固定 `numpy==2.2.6`（保持在 `<2.4`，避免默认 baseline 提升到 `x86-64-v2`），请先重新安装依赖再打包：
   - `python -m pip install -r requirements.txt --force-reinstall`
 - 然后删除旧产物 `build/`、`dist/` 后重新执行打包脚本。
 

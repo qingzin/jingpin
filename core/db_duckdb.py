@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 import duckdb
 import pandas as pd
-import numpy as np
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -367,7 +367,7 @@ class DuckDBStore:
 def _clean_str(val) -> Optional[str]:
     if val is None:
         return None
-    if isinstance(val, float) and np.isnan(val):
+    if isinstance(val, float) and math.isnan(val):
         return None
     s = str(val).strip()
     return s if s else None
@@ -377,7 +377,7 @@ def _to_float(val) -> Optional[float]:
     if val is None:
         return None
     try:
-        if isinstance(val, float) and np.isnan(val):
+        if isinstance(val, float) and math.isnan(val):
             return None
         return float(val)
     except (ValueError, TypeError):

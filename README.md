@@ -105,6 +105,12 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
      - CMD：`packaging\\build_exe.bat D:\\ProgramData\\miniforge3\\python.exe`
   4. 在目标 Windows 机器安装 **Microsoft Visual C++ Redistributable 2015-2022 (x64)** 后重试。
 
+### 1.3) `NumPy was built with baseline optimizations (X86_V2)`
+- 这是目标机器 CPU 指令集较老，和当前打包环境里安装的 NumPy 二进制不兼容导致。
+- 项目已固定 `numpy==1.26.4`（兼容性更好），请先重新安装依赖再打包：
+  - `python -m pip install -r requirements.txt --force-reinstall`
+- 然后删除旧产物 `build/`、`dist/` 后重新执行打包脚本。
+
 ### 2) 检索不到结果
 - 尝试放宽筛选条件
 - 调大 `top_k`

@@ -1,23 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path, PurePosixPath
+import sys
 
-from PyInstaller.utils.hooks import collect_all
-
-pyside_datas, pyside_binaries, pyside_hiddenimports = collect_all('PySide6')
-shiboken_datas, shiboken_binaries, shiboken_hiddenimports = collect_all('shiboken6')
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 
-EXCLUDED_BINARY_SUFFIXES = {
-    'qsqlibase.dll',
-    'qsqlmimer.dll',
-    'qsqloci.dll',
-    'qsqlpsql.dll',
-    'qtquickshapesdesignhelpersplugin.dll',
-}
-
-
-EXCLUDED_HIDDENIMPORT_PREFIXES = (
-    'PySide6.scripts.deploy',
+EXCLUDED_PATH_KEYWORDS = (
+    '/plugins/sqldrivers/',
+    '/qml/qtquick/shapes/designhelpers/',
 )
 
 
@@ -25,32 +15,42 @@ def _normalize(path: str) -> str:
     return str(PurePosixPath(path.replace('\\', '/'))).lower()
 
 
-def _keep_binary(item: tuple) -> bool:
-    paths = [_normalize(part) for part in item if isinstance(part, str)]
-    if not paths:
-        return True
-    return not any(path.endswith(name) for path in paths for name in EXCLUDED_BINARY_SUFFIXES)
+def _is_excluded(item: tuple) -> bool:
+    parts = [_normalize(part) for part in item if isinstance(part, str)]
+    return any(keyword in p for p in parts for keyword in EXCLUDED_PATH_KEYWORDS)
 
 
-def _keep_hiddenimport(name: str) -> bool:
-    return not any(name.startswith(prefix) for prefix in EXCLUDED_HIDDENIMPORT_PREFIXES)
+def _collect_ffi_dlls() -> list[tuple[str, str]]:
+    dlls: list[tuple[str, str]] = []
+    candidates = [
+        Path(sys.base_prefix) / 'Library' / 'bin' / 'ffi.dll',
+        Path(sys.base_prefix) / 'DLLs' / 'ffi.dll',
+    ]
+    for p in candidates:
+        if p.exists():
+            dlls.append((str(p), '.'))
+    return dlls
 
 
-filtered_pyside_binaries = [b for b in pyside_binaries if _keep_binary(b)]
-filtered_hiddenimports = [h for h in [*pyside_hiddenimports, *shiboken_hiddenimports] if _keep_hiddenimport(h)]
+pyside_binaries = collect_dynamic_libs('PySide6')
+shiboken_binaries = collect_dynamic_libs('shiboken6')
+pyside_datas = collect_data_files('PySide6')
+
+filtered_binaries = [b for b in [*pyside_binaries, *shiboken_binaries] if not _is_excluded(b)]
+filtered_datas = [d for d in pyside_datas if not _is_excluded(d)]
 
 runtime_hook_file = str(Path(SPECPATH) / 'qt_runtime_hook.py')
 
 a = Analysis(
     ['../builder_gui.py'],
     pathex=[],
-    binaries=[*filtered_pyside_binaries, *shiboken_binaries],
-    datas=[('../config/column_mapping.json', 'config'), *pyside_datas, *shiboken_datas],
-    hiddenimports=filtered_hiddenimports,
+    binaries=[*filtered_binaries, *_collect_ffi_dlls()],
+    datas=[('../config/column_mapping.json', 'config'), *filtered_datas],
+    hiddenimports=['yaml', 'PySide6', 'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[runtime_hook_file],
-    excludes=[],
+    excludes=['PySide6.scripts.deploy', 'PySide6.scripts.deploy_lib', 'jinja2'],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

@@ -39,7 +39,7 @@ def _keep_hiddenimport(name: str) -> bool:
 filtered_pyside_binaries = [b for b in pyside_binaries if _keep_binary(b)]
 filtered_hiddenimports = [h for h in [*pyside_hiddenimports, *shiboken_hiddenimports] if _keep_hiddenimport(h)]
 
-runtime_hook_file = str(Path(__file__).resolve().parent / 'qt_runtime_hook.py')
+runtime_hook_file = str(Path(SPECPATH) / 'qt_runtime_hook.py')
 
 a = Analysis(
     ['../search_gui.py'],

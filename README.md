@@ -37,16 +37,16 @@ python -m pip install pyinstaller
 powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 ```
 
-打包后会在 `dist/` 目录得到：
+打包后会在 `dist/` 目录得到（**one-folder 模式**）：
 
-- `dist/builder_tool.exe`
-- `dist/search_gui.exe`
+- `dist/builder_tool/builder_tool.exe`
+- `dist/search_gui/search_gui.exe`
 
 ---
 
 ### 3) 运行建库 GUI（builder_tool.exe）
 
-双击 `dist/builder_tool.exe` 后：
+双击 `dist/builder_tool/builder_tool.exe` 后：
 
 1. 输入 `Embedding 模型名`（默认 `bge-m3`）
 2. 输入 `API Key`
@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 
 ### 4) 运行检索 GUI（search_gui.exe）
 
-双击 `dist/search_gui.exe` 后：
+双击 `dist/search_gui/search_gui.exe` 后：
 
 1. 输入 `API Key`（必填）
 2. 设置 `DuckDB` 与 `Qdrant` 路径
@@ -98,13 +98,12 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 ### 1.2) `ImportError: DLL load failed while importing QtCore`
 - `builder_gui.py` 和 `search_gui.py` 同时报这个错，通常说明是 **本机 Python + PySide6 运行时环境** 问题，不是某个 GUI 脚本本身的问题。
 - 处理步骤：
-  1. 先运行诊断脚本：`python tools/check_qt_env.py`。
-  2. 确认不要混用解释器（例如日志里同时出现 `Python313` 的 site-packages 和 `miniforge3` 路径）。建议显式指定解释器运行打包脚本：  
+  1. 确认不要混用解释器（例如日志里同时出现 `Python313` 的 site-packages 和 `miniforge3` 路径）。建议显式指定解释器运行打包脚本：  
      - PowerShell：`packaging\build_exe.ps1 -Python D:\ProgramData\miniforge3\python.exe`  
      - CMD：`packaging\build_exe.bat D:\ProgramData\miniforge3\python.exe`
-  3. 用同一个解释器重装 PySide6：`python -m pip uninstall -y PySide6 shiboken6 && python -m pip install --no-cache-dir PySide6`
-  4. 在目标 Windows 机器安装 **Microsoft Visual C++ Redistributable 2015-2022 (x64)** 后重试。
-  5. 删除旧产物 `build/`、`dist/` 后再执行打包脚本（脚本第 3 步会自动调用诊断）。
+  2. 用同一个解释器重装 PySide6：`python -m pip uninstall -y PySide6 shiboken6 && python -m pip install --no-cache-dir PySide6`
+  3. 在目标 Windows 机器安装 **Microsoft Visual C++ Redistributable 2015-2022 (x64)** 后重试。
+  4. 删除旧产物 `build/`、`dist/` 后再执行打包脚本。
 
 ### 1.3) `NumPy was built with baseline optimizations (X86_V2)`
 - 这是目标机器 CPU 指令集较老，和当前打包环境里安装的 NumPy 二进制不兼容导致。
@@ -128,6 +127,6 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 - 建库 GUI 入口：`builder_gui.py`
 - 检索 GUI 入口：`search_gui.py`
 - 兼容 CLI 建库脚本：`builder_tool.py`
-- 打包 spec：
-  - `packaging/builder_tool.spec`
-  - `packaging/search_service.spec`
+- 打包脚本：
+  - `packaging/build_exe.ps1`（PowerShell）
+  - `packaging/build_exe.bat`（CMD）

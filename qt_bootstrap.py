@@ -17,7 +17,11 @@ def _add_path_front(path: Path) -> None:
 
 def _add_dll_dir(path: Path) -> None:
     if hasattr(os, "add_dll_directory") and path.exists():
-        os.add_dll_directory(str(path))
+        try:
+            os.add_dll_directory(str(path))
+        except OSError:
+            # 某些目录在受限环境下可能无法注册，忽略并继续。
+            pass
 
 
 def configure_qt_runtime() -> None:
@@ -27,11 +31,17 @@ def configure_qt_runtime() -> None:
     exe_dir = Path(sys.executable).resolve().parent
     base_dir = Path(getattr(sys, "_MEIPASS", exe_dir))
 
+    internal_dir = exe_dir / "_internal"
     candidates = [
         base_dir,
         base_dir / "PySide6",
+        base_dir / "shiboken6",
         exe_dir,
         exe_dir / "PySide6",
+        exe_dir / "shiboken6",
+        internal_dir,
+        internal_dir / "PySide6",
+        internal_dir / "shiboken6",
         Path(sys.base_prefix) / "DLLs",
         Path(sys.base_prefix) / "Library" / "bin",
     ]

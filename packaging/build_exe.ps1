@@ -15,11 +15,17 @@ if (Test-Path dist) { Remove-Item -Recurse -Force dist }
 Write-Host "[3/3] Building GUI executables (one-folder)..."
 & $Python -m PyInstaller --noconfirm --clean --onedir --windowed `
   --name builder_tool `
+  --hidden-import shiboken6 `
+  --collect-all PySide6 `
+  --collect-all shiboken6 `
   --add-data "config;config" `
   builder_gui.py
 
 & $Python -m PyInstaller --noconfirm --clean --onedir --windowed `
   --name search_gui `
+  --hidden-import shiboken6 `
+  --collect-all PySide6 `
+  --collect-all shiboken6 `
   --add-data "config;config" `
   search_gui.py
 

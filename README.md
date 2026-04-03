@@ -94,7 +94,7 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
   - `python -c "import sys; print(sys.executable)"`
   - `python -m pip show PySide6`
 - 再用同一个解释器执行打包脚本（脚本已包含 `pip install -r requirements.txt`）。
-- 当前打包脚本已显式加入 `--collect-all PySide6 --collect-all shiboken6`，用于尽量避免 Qt 运行库缺失。
+- 当前打包脚本已显式加入 `--collect-all PySide6 --collect-all shiboken6`，并会尝试复制 `vcruntime140*.dll/msvcp140*.dll` 到 `dist`，用于尽量避免 Qt 运行库缺失。
 
 ### 1.2) `ImportError: DLL load failed while importing QtCore`
 - `builder_gui.py` 和 `search_gui.py` 同时报这个错，通常说明是 **本机 Python + PySide6 运行时环境** 问题，不是某个 GUI 脚本本身的问题。

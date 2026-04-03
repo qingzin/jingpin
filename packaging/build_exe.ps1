@@ -29,6 +29,32 @@ Write-Host "[3/3] Building GUI executables (one-folder)..."
   --add-data "config;config" `
   search_gui.py
 
+Write-Host "[4/4] Copying VC runtime DLLs (if available)..."
+$pyExe = (& $Python -c "import sys; print(sys.executable)").Trim()
+$pyDir = Split-Path -Parent $pyExe
+$runtimeDlls = @(
+    "vcruntime140.dll",
+    "vcruntime140_1.dll",
+    "msvcp140.dll",
+    "msvcp140_1.dll",
+    "msvcp140_2.dll"
+)
+$searchDirs = @($pyDir, (Join-Path $pyDir "DLLs"))
+foreach ($dll in $runtimeDlls) {
+    $src = $null
+    foreach ($d in $searchDirs) {
+        $candidate = Join-Path $d $dll
+        if (Test-Path $candidate) {
+            $src = $candidate
+            break
+        }
+    }
+    if ($src) {
+        Copy-Item -Force $src (Join-Path "dist/builder_tool" $dll)
+        Copy-Item -Force $src (Join-Path "dist/search_gui" $dll)
+    }
+}
+
 Write-Host "Build completed."
 Write-Host "- dist/builder_tool/builder_tool.exe"
 Write-Host "- dist/search_gui/search_gui.exe"

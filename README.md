@@ -5,6 +5,9 @@
 - `builder_tool.exe`：建库 GUI（BOM+点云入库，支持增量更新与持续监控）
 - `search_gui.exe`：检索 GUI（语义检索 + 属性筛选 + 点云下载）
 
+> 源码保护说明：本仓库使用 `PyInstaller --onefile` 交付 EXE，可避免直接交付 `.py` 源文件；但 Python 字节码仍可能被逆向。
+> 若你对“不可逆”有强要求，建议在同一流程中改用 Nuitka/Cython + 混淆 + 许可证校验。
+
 ---
 
 ## 一、你在 Windows 电脑上需要执行的操作
@@ -130,4 +133,4 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 - 兼容 CLI 建库脚本：`builder_tool.py`
 - 打包 spec：
   - `packaging/builder_tool.spec`
-  - `packaging/search_service.spec`
+  - `packaging/search_gui.spec`

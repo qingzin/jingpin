@@ -68,8 +68,8 @@ class SearchWindow(QMainWindow):
 
         form.addRow("API Key", self.api_key)
         form.addRow("Embedding模型", self.model)
-        form.addRow("DuckDB", self.db)
-        form.addRow("Qdrant目录", self.qdrant)
+        form.addRow("DuckDB", self._path_row(self.db, is_file=True))
+        form.addRow("Qdrant目录", self._path_row(self.qdrant, is_file=False))
 
         conn_btn = QPushButton("初始化检索")
         conn_btn.clicked.connect(self.init_runtime)
@@ -140,6 +140,27 @@ class SearchWindow(QMainWindow):
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         right_layout.addWidget(self.progress)
+
+    def _path_row(self, edit: QLineEdit, is_file: bool):
+        box = QWidget()
+        hl = QHBoxLayout(box)
+        hl.setContentsMargins(0, 0, 0, 0)
+        hl.addWidget(edit)
+        btn = QPushButton("选择")
+
+        def choose():
+            if is_file:
+                path, _ = QFileDialog.getSaveFileName(self, "选择文件", edit.text())
+                if path:
+                    edit.setText(path)
+            else:
+                path = QFileDialog.getExistingDirectory(self, "选择目录", edit.text())
+                if path:
+                    edit.setText(path)
+
+        btn.clicked.connect(choose)
+        hl.addWidget(btn)
+        return box
 
     def append_log(self, text: str):
         self.log_box.appendPlainText(text)

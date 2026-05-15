@@ -1,8 +1,8 @@
 # BOM + 点云工具（Windows GUI EXE 交付）
 
-本项目提供两个可在 Windows 上双击运行的 GUI 程序：
+本项目提供两个可在 Windows 上双击运行的 GUI 程序（PyInstaller one-folder）：
 
-- `builder_tool.exe`：建库 GUI（BOM+点云入库，支持增量更新与持续监控）
+- `builder_gui.exe`：建库 GUI（BOM+点云入库，支持增量更新与持续监控）
 - `search_gui.exe`：检索 GUI（语义检索 + 属性筛选 + 点云下载）
 
 ---
@@ -39,14 +39,14 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 
 打包后会在 `dist/` 目录得到：
 
-- `dist/builder_tool.exe`
-- `dist/search_gui.exe`
+- `dist/builder_gui/builder_gui.exe`
+- `dist/search_gui/search_gui.exe`
 
 ---
 
-### 3) 运行建库 GUI（builder_tool.exe）
+### 3) 运行建库 GUI（builder_gui.exe）
 
-双击 `dist/builder_tool.exe` 后：
+双击 `dist/builder_gui/builder_gui.exe` 后：
 
 1. 输入 `Embedding 模型名`（默认 `bge-m3`）
 2. 输入 `API Key`
@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 
 ### 4) 运行检索 GUI（search_gui.exe）
 
-双击 `dist/search_gui.exe` 后：
+双击 `dist/search_gui/search_gui.exe` 后：
 
 1. 输入 `API Key`（必填）
 2. 设置 `DuckDB` 与 `Qdrant` 路径
@@ -128,6 +128,9 @@ powershell -ExecutionPolicy Bypass -File packaging/build_exe.ps1
 - 建库 GUI 入口：`builder_gui.py`
 - 检索 GUI 入口：`search_gui.py`
 - 兼容 CLI 建库脚本：`builder_tool.py`
+- 打包脚本：
+  - `packaging/build_exe.ps1`
+  - `packaging/build_exe.bat`
 - 打包 spec：
-  - `packaging/builder_tool.spec`
-  - `packaging/search_service.spec`
+  - `packaging/builder_gui.spec`
+  - `packaging/search_gui.spec`
